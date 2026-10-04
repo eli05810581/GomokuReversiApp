@@ -85,6 +85,7 @@ abstract class Game {
     CurrentPlayerIndex: Integer
     VisibilityModel: IVisibilityModel
     WinCondition: IWinCondition
+    MoveParser: IMoveParser
     HistoryManager: HistoryManager
     __
     +ProcessMove(move: Move): Boolean
@@ -100,7 +101,7 @@ abstract class Game {
 together {
     Game <|-- GomokuGame
     Game <|-- ReversiGame
-
+    
     class GomokuGame {
         #IsMoveLegal(move: Move): Boolean
         #ApplyMove(move: Move): Void
@@ -122,6 +123,7 @@ together {
         -GetFlippableDisks(move: Move): List<Position>
     }
 }
+Game --> IMoveParser
 
 Game *-- Board
 Game o-- "2" Player
@@ -188,10 +190,28 @@ Player <|-- ScriptedPlayer
 
 class InputParser {
     __
-    +Parse(input): ICommand
+    +Parse(input: String, game: Game): ICommand
 }
 ConsoleCommandSource --> InputParser
 AutomatedCommandSource --> InputParser
+InputParser --> IMoveParser : delegates move parsing
+
+interface IMoveParser {
+    +ParseMove(input: String): Move
+}
+class GomokuMoveParser {
+    +ParseMove(input: String): Move
+}
+class GomokuPlusMoveParser {
+    +ParseMove(input: String): Move
+}
+class ReversiMoveParser{
+    +ParseMove(input: String): Move
+}
+
+IMoveParser <|.. GomokuMoveParser
+IMoveParser <|.. GomokuPlusMoveParser
+IMoveParser <|.. ReversiMoveParser
 
 interface ICommand {
     __
