@@ -1,0 +1,292 @@
+@startuml
+
+class Program {
+    +Main(): Void
+}
+
+class CommandLineParser {
+    +Parse(args: String[]): LaunchConfiguration
+}
+
+class LaunchConfiguration {
+    GameType: GameType
+    Variant: GameVariant
+    GameMode: GameMode
+    MoveSequence: List<String>
+}
+
+Program --> CommandLineParser
+
+interface ICommandSource {
+    +GetNextCommand(game: Game): ICommand
+    +HasNextCommand(): Boolean
+}
+
+class ConsoleCommandSource {
+    +GetNextCommand(game: Game): ICommand
+    +HasNextCommand(): Boolean
+}
+
+class AutomatedCommandSource {
+    -Commands: Queue<ICommand>
+    __
+    +GetNextCommand(game: Game): ICommand
+    +HasNextCommand(): Boolean
+}
+
+ICommandSource <|.. ConsoleCommandSource
+ICommandSource <|.. AutomatedCommandSource
+
+GameController --> ICommandSource
+
+class GameController {
+    CurrentGame: Game
+    IsRunning: Boolean
+    CommandSource: ICommandSource
+    __
+    +Run(): Void
+    +StartGame(config: LaunchConfiguration): Void
+    +ExecuteCommand(command: ICommand): Void
+    +SaveGame(fileName: String): Void
+    +LoadGame(fileName: String): Void
+    +DisplayHelp(): Void
+    +QuitGame(): Void
+}
+Program --> GameController
+GameController --> LaunchConfiguration
+
+
+abstract class GameFactory {
+    +CreateGame(variant: GameVariant, mode: GameMode): Game
+    {abstract} #CreateWinCondition(variant: GameVariant): IWinCondition
+    {abstract} #CreateVisibilityModel(variant: GameVariant): IVisibilityModel
+}
+GameFactory ..> "Creates" Game
+GameFactory <|-- GomokuGameFactory
+GameFactory <|-- ReversiGameFactory
+
+GameController --> GameFactory
+
+class GomokuGameFactory {
+    +CreateGame(variant: GameVariant, mode: GameMode): Game
+    #CreateWinCondition(variant: GameVariant): IWinCondition
+    #CreateVisibilityModel(variant: GameVariant): IVisibilityModel
+}
+class ReversiGameFactory {
+    +CreateGame(variant: GameVariant, mode: GameMode): Game
+    #CreateWinCondition(variant: GameVariant): IWinCondition
+    #CreateVisibilityModel(variant: GameVariant): IVisibilityModel
+}
+
+
+abstract class Game {
+    Board: Board
+    Players: List<Player>
+    CurrentPlayerIndex: Integer
+    VisibilityModel: IVisibilityModel
+    WinCondition: IWinCondition
+    HistoryManager: HistoryManager
+    __
+    +ProcessMove(move: Move): Boolean
+    {abstract} #IsMoveLegal(move: Move): Boolean
+    {abstract} #ApplyMove(move: Move): Void
+    {abstract} +GetLegalMoves(player: Player): List<Move>
+    +IsGameOver(): Boolean
+    +GetWinner(): Player
+    +CreateMemento(): GameMemento
+    +Restore(memento: GameMemento): Void
+
+}
+together {
+    Game <|-- GomokuGame
+    Game <|-- ReversiGame
+
+    class GomokuGame {
+        #IsMoveLegal(move: Move): Boolean
+        #ApplyMove(move: Move): Void
+        +GetLegalMoves(player: Player): List<Move>
+    }
+
+    GomokuGame <|-- GomokuPlusGame
+
+    class GomokuPlusGame {
+        #IsMoveLegal(move: Move): Boolean
+        #ApplyMove(move: Move): Void
+        -UpdateStoneInventory(player: Player, move: Move): Void
+    }
+
+    class ReversiGame {
+        #IsMoveLegal(move: Move): Boolean
+        #ApplyMove(move: Move): Void
+        +GetLegalMoves(player: Player): List<Move>
+        -GetFlippableDisks(move: Move): List<Position>
+    }
+}
+
+Game *-- Board
+Game o-- "2" Player
+together {
+    interface IWinCondition {
+        +IsGameOver(game:Game): Boolean
+        +GetWinner(game:Game): Player
+    }
+    class StandardGomokuWinCondition
+    class StandardReversiWinCondition
+    class AntiReversiWinCondition
+    class CornerReversiWinCondition
+
+    IWinCondition <|.. StandardGomokuWinCondition
+    IWinCondition <|.. StandardReversiWinCondition
+    IWinCondition <|.. AntiReversiWinCondition
+    IWinCondition <|.. CornerReversiWinCondition
+
+    Game --> IWinCondition
+
+    interface IVisibilityModel {
+        +GetVisibleBoard(board: Board, player: Player)
+    }
+
+    class FullVisibility
+    class FogVisibility
+
+    IVisibilityModel <|.. FullVisibility
+    IVisibilityModel <|.. FogVisibility
+
+    Game --> IVisibilityModel
+    
+}
+
+
+
+class Board {
+    BoardSizeX: Integer
+    BoardSizeY: Integer
+    BoardContents: List<List<String>>
+    __
+    GetBoardSize(): Tuple<Integer, Integer>
+    GetCellContents(x: Integer, y: Integer): String
+    UpdateCellContents(x: Integer, y: Integer, contents: String): Void
+}
+
+abstract class Player {
+    PlayerName: String
+    PlayerNumber: Integer
+}
+
+class HumanPlayer
+
+class AIPlayer {
+    MoveStrategy: IMoveStrategy
+}
+class ScriptedPlayer { 
+
+}
+Player <|-- HumanPlayer
+Player <|-- AIPlayer
+Player <|-- ScriptedPlayer
+
+
+class InputParser {
+    __
+    +Parse(input): ICommand
+}
+ConsoleCommandSource --> InputParser
+AutomatedCommandSource --> InputParser
+
+interface ICommand {
+    __
+    +Execute(controller:GameController):Void
+}
+
+class MoveCommand {
+    Move: Move
+    __
+    +Execute(controller: GameController): Void
+}
+class UndoCommand {
+    +Execute(controller: GameController): Void
+}
+class RedoCommand {
+    +Execute(controller: GameController): Void
+}
+class HelpCommand {
+    +Execute(controller: GameController): Void
+}
+class SaveCommand {
+    FileName: String
+    __
+    +Execute(controller: GameController): Void
+}
+class LoadCommand {
+    +Execute(controller: GameController): Void
+}
+class QuitCommand {
+    +Execute(controller: GameController): Void
+}
+
+ICommand <|.. MoveCommand
+ICommand <|.. UndoCommand
+ICommand <|.. RedoCommand
+ICommand <|.. HelpCommand
+ICommand <|.. SaveCommand
+ICommand <|.. LoadCommand
+ICommand <|.. QuitCommand
+
+InputParser --> ICommand : creates
+GameController --> ICommand : executes
+
+class GameMemento {
+    -BoardState
+    -PlayerStates
+    -CurrentPlayerIndex: Integer
+    -TurnNumber: Integer
+}
+HistoryManager o-- "0..*" GameMemento
+
+class HistoryManager {
+    -UndoHistory: Stack<GameMemento>
+    -RedoHistory: Stack<GameMemento>
+    __
+    +Record(state: GameMemento): Void
+    +Undo(): GameMemento
+    +Redo(): GameMemento
+}
+Game *-- HistoryManager
+
+interface IMoveStrategy {
+    +SelectMove(game: Game, player: Player): Move
+}
+
+class RandomMoveStrategy
+class SmartMoveStrategy
+
+IMoveStrategy <|-- RandomMoveStrategy
+IMoveStrategy <|-- SmartMoveStrategy
+AIPlayer --> IMoveStrategy
+
+class Move {
+    Row: Integer
+    Column: Integer
+    StoneType: String
+}
+
+enum GameType {
+    Gomoku
+    Reversi
+}
+
+enum GameMode {
+    HumanVsHuman
+    HumanVsDumbAI
+    HumanVsSmartAI
+    Automated
+}
+
+enum GameVariant {
+    Standard
+    Plus
+    Fog
+    Anti
+    Corner
+}
+@enduml
