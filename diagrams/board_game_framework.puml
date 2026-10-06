@@ -1,0 +1,705 @@
+@startuml
+
+hide circle
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 25
+skinparam ranksep 45
+
+' =========================================================
+' VALUE TYPES
+' =========================================================
+
+enum GameMode {
+    HVH
+    HVC
+}
+
+enum AIDifficulty {
+    Dumb
+    Smart
+}
+
+enum GameResult {
+    InProgress
+    P1Wins
+    P2Wins
+    Draw
+}
+
+enum PieceType {
+    Ordinary
+    Heavy
+    Disk
+}
+
+enum GameEventType {
+    MoveExecuted
+    MoveRejected
+    UndoPerformed
+    RedoPerformed
+    GameLoaded
+    GameEnded
+}
+
+class GameKey {
+    Family: string
+    Variant: string
+}
+
+class Position {
+    Row: int
+    Column: int
+}
+
+class ValidationResult {
+    IsValid: bool
+    Message: string
+}
+
+
+' =========================================================
+' DOMAIN
+' =========================================================
+
+abstract class Player {
+    Id: int
+    Name: string
+    Inventory: StoneInventory?
+    {abstract} GetAction(c: GameContext): IPlayerAction
+}
+
+class HumanPlayer
+class ComputerPlayer
+
+class Board {
+    Rows: int
+    Columns: int
+    GetPiece(p: Position): Piece?
+    PlacePiece(p: Position, piece: Piece): void
+    RemovePiece(p: Position): Piece?
+    FlipPiece(p: Position, id: int): void
+    CountPieces(id: int, type: PieceType?): int
+    IsInside(p: Position): bool
+    IsFull(): bool
+}
+
+class Piece {
+    OwnerId: int
+    Type: PieceType
+}
+
+class StoneInventory {
+    HeavyCount: int
+    EraserCount: int
+    ConsumeHeavy(): void
+    RestoreHeavy(): void
+    ConsumeEraser(): void
+    RestoreEraser(): void
+}
+
+class GameContext {
+    Board: Board
+    Players: List<Player>
+    ActivePlayerId: int
+    MoveNumber: int
+    GetPlayer(id: int): Player
+    AdvanceTurn(): void
+    SetActivePlayer(id: int): void
+    SetMoveNumber(n: int): void
+}
+
+Player <|-- HumanPlayer
+Player <|-- ComputerPlayer
+
+Board "1" *-- "0..*" Piece
+Player "1" *-- "0..1" StoneInventory
+GameContext "1" *-- "1" Board
+GameContext "1" *-- "2" Player
+
+
+' =========================================================
+' COMMAND MODEL
+' =========================================================
+
+interface IPlayerAction
+
+interface IGameCommand {
+    PlayerId: int
+    Execute(c: GameContext): void
+    Undo(c: GameContext): void
+}
+
+abstract class GameCommandBase {
+    PlayerId: int
+    -PreviousActivePlayerId: int
+    -PreviousMoveNumber: int
+
+    Execute(c: GameContext): void
+    Undo(c: GameContext): void
+
+    # {abstract} Apply(c: GameContext): void
+    # {abstract} Revert(c: GameContext): void
+}
+
+abstract class PlacementCommand {
+    Position: Position
+}
+
+class PlaceStoneCommand {
+    PieceType: PieceType
+}
+
+class EraseStoneCommand {
+    -RemovedPiece: Piece
+}
+
+class PlaceDiskCommand {
+    -FlippedPositions: List<Position>
+}
+
+class PassCommand
+
+IPlayerAction <|-- IGameCommand
+IGameCommand <|-- GameCommandBase
+
+GameCommandBase <|-- PlacementCommand
+GameCommandBase <|-- PassCommand
+
+PlacementCommand <|-- PlaceStoneCommand
+PlacementCommand <|-- EraseStoneCommand
+PlacementCommand <|-- PlaceDiskCommand
+
+PlacementCommand "1" --> "1" Position
+EraseStoneCommand "1" --> "0..1" Piece
+PlaceDiskCommand "1" --> "0..*" Position
+PlaceDiskCommand "1" *-- "1" FlankingScanner
+
+IGameCommand ..> GameContext
+PlaceStoneCommand ..> StoneInventory
+EraseStoneCommand ..> StoneInventory
+
+
+' =========================================================
+' SESSION COMMANDS
+' =========================================================
+
+interface ISessionCommand {
+    Execute(host: ISessionHost): void
+}
+
+class UndoCommand
+class RedoCommand
+
+class SaveCommand {
+    FileName: string
+}
+
+class LoadCommand {
+    FileName: string
+}
+
+class HelpCommand
+class QuitCommand
+
+IPlayerAction <|-- ISessionCommand
+
+ISessionCommand <|-- UndoCommand
+ISessionCommand <|-- RedoCommand
+ISessionCommand <|-- SaveCommand
+ISessionCommand <|-- LoadCommand
+ISessionCommand <|-- HelpCommand
+ISessionCommand <|-- QuitCommand
+
+ISessionCommand ..> ISessionHost
+
+
+' =========================================================
+' RULES
+' =========================================================
+
+interface IGameRules {
+    Validate(c: IGameCommand, x: GameContext): ValidationResult
+    GenerateLegalMoves(x: GameContext, id: int): List<PlacementCommand>
+    GameShouldEnd(x: GameContext): bool
+}
+
+class GomokuRules
+class GomokuPlusRules
+class ReversiRules
+
+IGameRules <|-- GomokuRules
+GomokuRules <|-- GomokuPlusRules
+IGameRules <|-- ReversiRules
+
+IGameRules ..> ValidationResult
+IGameRules ..> IGameCommand
+IGameRules ..> PlacementCommand
+
+GomokuRules ..> PlaceStoneCommand
+GomokuPlusRules ..> EraseStoneCommand
+GomokuPlusRules ..> StoneInventory
+
+ReversiRules ..> PlaceDiskCommand
+
+
+' =========================================================
+' SCANNERS
+' =========================================================
+
+class LineScanner {
+    HasWinningLine(b: Board, id: int): bool
+    WouldWin(b: Board, p: Position, id: int): bool
+}
+
+class FlankingScanner {
+    GetFlips(b: Board, p: Position, id: int): List<Position>
+}
+
+ReversiRules "1" *-- "1" FlankingScanner
+
+
+' =========================================================
+' WIN EVALUATION
+' =========================================================
+
+interface IWinEvaluator {
+    Evaluate(c: GameContext, ended: bool): GameResult
+}
+
+class GomokuWinEvaluator
+class StandardReversiWinEvaluator
+class MisereWinEvaluator
+class CornerWinEvaluator
+
+IWinEvaluator <|-- GomokuWinEvaluator
+IWinEvaluator <|-- StandardReversiWinEvaluator
+IWinEvaluator <|-- MisereWinEvaluator
+IWinEvaluator <|-- CornerWinEvaluator
+
+GomokuWinEvaluator "1" *-- "1" LineScanner
+MisereWinEvaluator "1" *-- "1" StandardReversiWinEvaluator
+CornerWinEvaluator "1" *-- "1" StandardReversiWinEvaluator
+
+
+' =========================================================
+' COMPUTER STRATEGY
+' =========================================================
+
+interface IComputerStrategy {
+    SelectAction(c: GameContext, id: int): IGameCommand
+}
+
+class DumbStrategy
+class SmartGomokuStrategy
+
+abstract class ReversiStrategyBase {
+    SelectAction(c: GameContext, id: int): IGameCommand
+    # {abstract} ScoreMove(c: GameContext, m: PlacementCommand): double
+}
+
+class SmartStandardReversiStrategy
+class SmartMisereReversiStrategy
+class SmartCornerReversiStrategy
+
+IComputerStrategy <|-- DumbStrategy
+IComputerStrategy <|-- SmartGomokuStrategy
+IComputerStrategy <|-- ReversiStrategyBase
+IComputerStrategy ..> IGameCommand
+
+ReversiStrategyBase <|-- SmartStandardReversiStrategy
+ReversiStrategyBase <|-- SmartMisereReversiStrategy
+ReversiStrategyBase <|-- SmartCornerReversiStrategy
+
+ComputerPlayer "1" --> "1" IComputerStrategy
+
+Player ..> IPlayerAction
+
+DumbStrategy "1" --> "1" IGameRules
+DumbStrategy ..> PassCommand
+
+SmartGomokuStrategy "1" --> "1" IGameRules
+SmartGomokuStrategy "1" *-- "1" LineScanner
+
+ReversiStrategyBase "1" --> "1" IGameRules
+ReversiStrategyBase "1" *-- "1" FlankingScanner
+ReversiStrategyBase ..> PassCommand
+
+
+' =========================================================
+' VISIBILITY
+' =========================================================
+
+interface IVisibilityModel {
+    GetView(b: Board, id: int): BoardView
+}
+
+class FullVisibility
+class FogVisibility
+
+class BoardView {
+    Rows: int
+    Columns: int
+    GetValue(p: Position): DisplayValue
+}
+
+class DisplayValue {
+    IsVisible: bool
+    OwnerId: int?
+    Type: PieceType?
+}
+
+IVisibilityModel <|-- FullVisibility
+IVisibilityModel <|-- FogVisibility
+
+IVisibilityModel ..> BoardView
+IVisibilityModel ..> DisplayValue
+BoardView "1" *-- "1..*" DisplayValue
+
+
+' =========================================================
+' INPUT / PARSING
+' =========================================================
+
+interface IInputSource {
+    ReadLine(prompt: string): string
+}
+
+class ConsoleInput
+class ScriptInput
+
+IInputSource <|-- ConsoleInput
+IInputSource <|-- ScriptInput
+
+abstract class CommandParser {
+    Parse(text: string, id: int): IPlayerAction
+    # {abstract} ParseMove(text: string, id: int): IGameCommand
+    {abstract} Format(c: IGameCommand): string
+}
+
+class GomokuCommandParser
+class ReversiCommandParser
+
+CommandParser <|-- GomokuCommandParser
+CommandParser <|-- ReversiCommandParser
+
+HumanPlayer "1" --> "1" IInputSource
+HumanPlayer "1" --> "1" CommandParser
+
+CommandParser ..> IGameCommand
+CommandParser ..> ISessionCommand
+
+GomokuCommandParser ..> PlaceStoneCommand
+GomokuCommandParser ..> EraseStoneCommand
+
+ReversiCommandParser ..> PlaceDiskCommand
+ReversiCommandParser ..> PassCommand
+
+
+' =========================================================
+' HELP
+' =========================================================
+
+abstract class HelpProvider {
+    GetHelp(c: GameContext, mode: GameMode): string
+    # {abstract} BuildContent(c: GameContext, mode: GameMode): string
+}
+
+class GomokuStandardHelpProvider
+class GomokuPlusHelpProvider
+class GomokuFogHelpProvider
+
+class ReversiStandardHelpProvider
+class ReversiAntiHelpProvider
+class ReversiCornerHelpProvider
+
+HelpProvider <|-- GomokuStandardHelpProvider
+HelpProvider <|-- GomokuPlusHelpProvider
+HelpProvider <|-- GomokuFogHelpProvider
+
+HelpProvider <|-- ReversiStandardHelpProvider
+HelpProvider <|-- ReversiAntiHelpProvider
+HelpProvider <|-- ReversiCornerHelpProvider
+
+
+' =========================================================
+' GAME / HISTORY / OBSERVER
+' =========================================================
+
+class Game {
+    Key: GameKey
+    Mode: GameMode
+    Difficulty: AIDifficulty?
+
+    Execute(c: IGameCommand): ValidationResult
+    Undo(): bool
+    Redo(): bool
+    Restore(cs: List<IGameCommand>): void
+
+    GetView(id: int): BoardView
+    GetViewerId(): int
+    GetContext(): GameContext
+    GetHelp(): string
+    GetResult(): GameResult
+    GetExecutedCommands(): List<IGameCommand>
+
+    AddObserver(o: IGameObserver): void
+}
+
+class CommandHistory {
+    Add(c: IGameCommand): void
+    AddRestored(c: IGameCommand): void
+    CanUndo(id: int): bool
+    CanRedo(id: int): bool
+    Undo(c: GameContext, id: int): void
+    Redo(c: GameContext, id: int): void
+    GetExecutedCommands(): List<IGameCommand>
+}
+
+interface IGameObserver {
+    Update(e: GameEvent): void
+}
+
+class GameEvent {
+    Type: GameEventType
+    Message: string?
+    Game: Game
+}
+
+class ConsoleRenderer {
+    Update(e: GameEvent): void
+    Render(v: BoardView): void
+    RenderSummary(g: Game): void
+}
+
+IGameObserver <|-- ConsoleRenderer
+
+Game "1" *-- "1" GameContext
+Game "1" *-- "1" CommandHistory
+
+Game "1" --> "1" IGameRules
+Game "1" --> "1" IWinEvaluator
+Game "1" --> "1" IVisibilityModel
+Game "1" --> "1" HelpProvider
+Game "1" --> "0..*" IGameObserver
+
+CommandHistory "1" *-- "0..*" IGameCommand
+
+Game ..> ValidationResult
+Game ..> GameEvent
+
+IGameObserver ..> GameEvent
+ConsoleRenderer ..> Game
+ConsoleRenderer ..> BoardView
+
+GameEvent "0..*" --> "1" Game
+
+
+' =========================================================
+' ABSTRACT FACTORY
+' =========================================================
+
+abstract class GameFactory {
+    {abstract} Key: GameKey
+
+    CreateGame(m: GameMode, d: AIDifficulty?, input: IInputSource): Game
+
+    {abstract} CreateBoard(): Board
+    {abstract} CreateRules(): IGameRules
+    {abstract} CreateWinEvaluator(): IWinEvaluator
+    {abstract} CreateVisibility(): IVisibilityModel
+    {abstract} CreateSmartStrategy(rules: IGameRules): IComputerStrategy
+    {abstract} CreateParser(): CommandParser
+    {abstract} CreateHelpProvider(): HelpProvider
+
+    CreateStrategy(d: AIDifficulty, rules: IGameRules): IComputerStrategy
+
+    CreateInventory(): StoneInventory?
+}
+
+abstract class GomokuFactory
+abstract class ReversiFactory
+
+class GomokuStandardFactory
+class GomokuPlusFactory
+class GomokuFogFactory
+
+class ReversiStandardFactory
+class ReversiAntiFactory
+class ReversiCornerFactory
+
+GameFactory <|-- GomokuFactory
+GameFactory <|-- ReversiFactory
+
+GameFactory "1" --> "1" GameKey
+
+GomokuFactory <|-- GomokuStandardFactory
+GomokuFactory <|-- GomokuPlusFactory
+GomokuFactory <|-- GomokuFogFactory
+
+ReversiFactory <|-- ReversiStandardFactory
+ReversiFactory <|-- ReversiAntiFactory
+ReversiFactory <|-- ReversiCornerFactory
+
+
+' ---------------------------------------------------------
+' ABSTRACT FACTORY -> ABSTRACT PRODUCTS
+' ---------------------------------------------------------
+
+GameFactory ..> Game
+GameFactory ..> GameContext
+GameFactory ..> Board
+GameFactory ..> HumanPlayer
+GameFactory ..> ComputerPlayer
+GameFactory ..> IGameRules
+GameFactory ..> IWinEvaluator
+GameFactory ..> IVisibilityModel
+GameFactory ..> IComputerStrategy
+GameFactory ..> CommandParser
+GameFactory ..> HelpProvider
+GameFactory ..> StoneInventory
+GameFactory ..> DumbStrategy
+
+
+' ---------------------------------------------------------
+' GOMOKU FACTORY FAMILY
+' ---------------------------------------------------------
+
+GomokuFactory ..> GomokuRules
+GomokuFactory ..> GomokuWinEvaluator
+GomokuFactory ..> FullVisibility
+GomokuFactory ..> GomokuCommandParser
+GomokuFactory ..> SmartGomokuStrategy
+
+GomokuStandardFactory ..> GomokuStandardHelpProvider
+
+GomokuPlusFactory ..> GomokuPlusRules
+GomokuPlusFactory ..> GomokuPlusHelpProvider
+GomokuPlusFactory ..> StoneInventory
+
+GomokuFogFactory ..> FogVisibility
+GomokuFogFactory ..> GomokuFogHelpProvider
+
+
+' ---------------------------------------------------------
+' REVERSI FACTORY FAMILY
+' ---------------------------------------------------------
+
+ReversiFactory ..> ReversiRules
+ReversiFactory ..> StandardReversiWinEvaluator
+ReversiFactory ..> FullVisibility
+ReversiFactory ..> ReversiCommandParser
+
+ReversiStandardFactory ..> SmartStandardReversiStrategy
+ReversiStandardFactory ..> ReversiStandardHelpProvider
+
+ReversiAntiFactory ..> MisereWinEvaluator
+ReversiAntiFactory ..> SmartMisereReversiStrategy
+ReversiAntiFactory ..> ReversiAntiHelpProvider
+
+ReversiCornerFactory ..> CornerWinEvaluator
+ReversiCornerFactory ..> SmartCornerReversiStrategy
+ReversiCornerFactory ..> ReversiCornerHelpProvider
+
+
+' =========================================================
+' REGISTRY / PERSISTENCE
+' =========================================================
+
+class GameRegistry {
+    Register(f: GameFactory): void
+    GetFactory(k: GameKey): GameFactory
+    Keys(): List<GameKey>
+}
+
+class GameStateData {
+    Key: GameKey
+    Mode: GameMode
+    Difficulty: AIDifficulty?
+    Commands: List<string>
+}
+
+class GameRepository {
+    Save(g: Game, file: string): void
+    Load(file: string, input: IInputSource): Game
+}
+
+GameRegistry "1" *-- "1..*" GameFactory
+
+GameRepository "1" --> "1" GameRegistry
+GameRepository ..> GameStateData
+GameRepository ..> GameFactory
+GameRepository ..> CommandParser
+GameRepository ..> Game
+
+
+' =========================================================
+' APPLICATION
+' =========================================================
+
+class LaunchConfiguration {
+    Key: GameKey
+    Mode: GameMode
+    Difficulty: AIDifficulty?
+    MoveSequence: List<string>?
+}
+
+interface ISessionHost {
+    Undo(): void
+    Redo(): void
+    Save(file: string): void
+    Load(file: string): void
+    ShowHelp(): void
+    RequestQuitGame(): void
+}
+
+class GameController {
+    -ExitGame: bool
+    -ExitApplication: bool
+    -NextGame: Game?
+    -CurrentGame: Game?
+    -Input: IInputSource
+
+    Run(c: LaunchConfiguration?): void
+    RunGame(g: Game): void
+
+    Undo(): void
+    Redo(): void
+    Save(file: string): void
+    Load(file: string): void
+    ShowHelp(): void
+    RequestQuitGame(): void
+    -RequestQuitApplication(): void
+}
+
+class Program {
+    Main(args: string[]): void
+}
+
+ISessionHost <|-- GameController
+
+GameController "1" --> "1" GameRegistry
+GameController "1" --> "1" GameRepository
+GameController "1" --> "1" ConsoleRenderer
+GameController "1" --> "1" IInputSource
+GameController "1" --> "0..1" Game
+
+Program ..> GameFactory
+Program ..> GameKey
+Program ..> GameRegistry
+Program ..> GameController
+Program ..> GameRepository
+Program ..> ConsoleRenderer
+Program ..> LaunchConfiguration
+
+GameController ..> ConsoleInput
+GameController ..> ScriptInput
+GameController ..> GameFactory
+GameController ..> IPlayerAction
+GameController ..> IGameCommand
+GameController ..> ISessionCommand
+GameController ..> LaunchConfiguration
+
+
+@enduml
