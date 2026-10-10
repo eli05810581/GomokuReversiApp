@@ -30,4 +30,6 @@ namespace GomokuReversiApp
     }
 
     public enum GameResult { OnGoing, Player1Wins, Player2Wins, Draw}
+
+
 }
