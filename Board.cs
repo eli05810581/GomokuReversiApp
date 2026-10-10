@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace GomokuReversiApp
 {
 public class Board
@@ -18,9 +20,36 @@ public class Board
         return row >= 1 && row <= Rows && col >= 1 && col <= Cols;
     }
 
+    public bool IsCorner(int row, int col)
+    {
+        return (row == 1 || row == Rows) && (col == 1 || col == Cols);
+    }
+
     public int GetOwner(int row, int col)
     {
         return cells[row, col];
+    }
+
+    public void SetOwner(int row, int col, int owner)
+    {
+        cells[row, col] = owner;
+    }
+
+    public int CountPieces(int owner)
+    {
+        int countPieces = 0;
+        for (int row = 1; row <= Rows; row++)
+        {
+            for (int col = 1; col <= Cols; col++)
+            {
+                if (cells[row, col] == owner)
+                {
+                    countPieces++;
+                }
+            }
+        }
+
+        return countPieces;
     }
 
     public int LongestLine(int row, int col, int owner)
