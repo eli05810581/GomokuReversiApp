@@ -21,7 +21,7 @@ namespace GomokuReversiApp
         IVisibilityModel CreateVisibilityModel(GameVariant gameVariant);
 
         
-// separate
+
     }
 
     public class GomokuGameFactory : IGameFactory

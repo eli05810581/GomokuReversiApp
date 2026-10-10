@@ -29,4 +29,5 @@ namespace GomokuReversiApp
         ReversiCorner
     }
 
+    public enum GameResult { OnGoing, Player1Wins, Player2Wins, Draw}
 }
