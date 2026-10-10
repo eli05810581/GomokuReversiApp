@@ -2,12 +2,12 @@ namespace GomokuReversiApp
 {
     public abstract class Move {}
     public class PassMove: Move {}
-    public class GomukuMove: Move
+    public class GomokuMove: Move
     {
         public int Row {get;}
         public int Col {get;}
         public char StoneType {get;} // O, H, E
-        public GomukuMove(int row, int col, char stoneType)
+        public GomokuMove(int row, int col, char stoneType)
         {
             Row = row;
             Col = col;
