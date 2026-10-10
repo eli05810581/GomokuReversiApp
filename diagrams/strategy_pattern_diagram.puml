@@ -1,0 +1,102 @@
+@startuml
+
+interface IMoveStrategy {
+  ChooseMove(Board board, IGameRules rules, Player AIPlayer) : Move
+}
+class RandomMoveStrategy
+class GomokuSmartStrategy {
+  winLength : int
+}
+abstract class ReversiScoringStrategy {
+  ChooseMove(Board board, IGameRules rules, Player AIPlayer) : Move
+  Score(Board board, ReversiMove move) : int
+}
+class GreedyReversiStrategy
+class CornerReversiStrategy
+class AntiReversiStrategy
+
+IMoveStrategy <|-- RandomMoveStrategy
+IMoveStrategy <|-- GomokuSmartStrategy
+IMoveStrategy <|-- ReversiScoringStrategy
+ReversiScoringStrategy <|-- GreedyReversiStrategy
+ReversiScoringStrategy <|-- CornerReversiStrategy
+ReversiScoringStrategy <|-- AntiReversiStrategy
+
+interface IWinEvaluator {
+  Evaluate(Board board, bool noMovesLeft) : GameResult
+}
+class AlignmentWinEvaluator {
+  winLength : int
+}
+abstract class CountBasedEvaluator {
+  Evaluate(Board board, bool noMovesLeft) : GameResult
+  DecideWinner(int p1Count, int p2Count) : GameResult
+}
+class MajorityCountEvaluator
+class MisereCountEvaluator
+class CornerDominanceEvaluator {
+  Evaluate(Board board, bool noMovesLeft) : GameResult
+}
+
+IWinEvaluator <|-- AlignmentWinEvaluator
+IWinEvaluator <|-- CountBasedEvaluator
+CountBasedEvaluator <|-- MajorityCountEvaluator
+CountBasedEvaluator <|-- MisereCountEvaluator
+CountBasedEvaluator <|-- CornerDominanceEvaluator
+
+class Game {
+  CheckResult() : GameResult
+}
+abstract class Player {
+  Number : int
+  GetMove(Board board, IGameRules rules) : Move
+}
+class ComputerPlayer
+interface IGameRules {
+  GetLegalMoves(Board board, Player player) : List<Move>
+}
+class GomokuRules
+class ReversiRules
+class Board {
+  Rows : int
+  Cols : int
+  GetOwner(int r, int c) : int
+  CountPieces(int owner) : int
+  LongestLine(int r, int c, int owner) : int
+  IsCorner(int r, int c) : bool
+}
+abstract class Move
+class GomokuMove {
+  Row, Col : int
+  StoneType : char
+}
+class ReversiMove {
+  Row, Col : int
+  FlipCount : int
+}
+class PassMove
+enum GameResult {
+  Ongoing
+  Player1Wins
+  Player2Wins
+  Draw
+}
+
+Player <|-- ComputerPlayer
+IGameRules <|-- GomokuRules
+IGameRules <|-- ReversiRules
+Move <|-- GomokuMove
+Move <|-- ReversiMove
+Move <|-- PassMove
+
+Game *-- Board
+Game --> IGameRules
+Game --> IWinEvaluator
+Game --> Player
+ComputerPlayer --> IMoveStrategy
+IMoveStrategy --> IGameRules
+IMoveStrategy --> Board
+IWinEvaluator --> Board
+GomokuSmartStrategy --> GomokuMove
+ReversiScoringStrategy --> ReversiMove
+@enduml
