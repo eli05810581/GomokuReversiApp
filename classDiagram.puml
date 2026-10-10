@@ -79,23 +79,20 @@ class ReversiGameFactory {
 }
 
 
-abstract class Game {
+class Game {
     Board: Board
     Players: List<Player>
-    CurrentPlayerIndex: Integer
+    CurrentPlayer: Player
     VisibilityModel: IVisibilityModel
-    WinCondition: IWinCondition
-    MoveParser: IMoveParser
+    MoveParser: IMoveParser ( input -> move object )
+    MoveProcessor: IMoveProcessor ( move object -> apply move, update board/flip disks, update inventories )
+    GameOverChecker: IGameOverChecker
     HistoryManager: HistoryManager
     __
-    +ProcessMove(move: Move): Boolean
-    {abstract} #IsMoveLegal(move: Move): Boolean
-    {abstract} #ApplyMove(move: Move): Void
-    {abstract} +GetLegalMoves(player: Player): List<Move>
-    +IsGameOver(): Boolean
-    +GetWinner(): Player
-    +CreateMemento(): GameMemento
-    +Restore(memento: GameMemento): Void
+    initialiseGame(args?)
+    
+
+    ProcessMove: MoveProcessor
 
 }
 together {
