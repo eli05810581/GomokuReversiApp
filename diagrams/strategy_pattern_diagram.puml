@@ -11,9 +11,15 @@ abstract class ReversiScoringStrategy {
   ChooseMove(Board board, IGameRules rules, Player AIPlayer) : Move
   Score(Board board, ReversiMove move) : int
 }
-class GreedyReversiStrategy
-class CornerReversiStrategy
-class AntiReversiStrategy
+class GreedyReversiStrategy {
+  Score(Board board, ReversiMove move) : int
+}
+class CornerReversiStrategy {
+  Score(Board board, ReversiMove move) : int
+}
+class AntiReversiStrategy {
+  Score(Board board, ReversiMove move) : int
+}
 
 IMoveStrategy <|-- RandomMoveStrategy
 IMoveStrategy <|-- GomokuSmartStrategy
@@ -22,27 +28,32 @@ ReversiScoringStrategy <|-- GreedyReversiStrategy
 ReversiScoringStrategy <|-- CornerReversiStrategy
 ReversiScoringStrategy <|-- AntiReversiStrategy
 
-interface IWinEvaluator {
-  Evaluate(Board board, bool noMovesLeft) : GameResult
+interface IGameOverChecker {
+  Check(Board board, bool noMovesLeft) : GameResult
 }
-class AlignmentWinEvaluator {
+class AlignmentChecker {
   winLength : int
 }
-abstract class CountBasedEvaluator {
-  Evaluate(Board board, bool noMovesLeft) : GameResult
+abstract class CountBasedChecker {
+  Check(Board board, bool noMovesLeft) : GameResult
   DecideWinner(int p1Count, int p2Count) : GameResult
 }
-class MajorityCountEvaluator
-class MisereCountEvaluator
-class CornerDominanceEvaluator {
-  Evaluate(Board board, bool noMovesLeft) : GameResult
+class MajorityChecker {
+  DecideWinner(int p1Count, int p2Count) : GameResult
+}
+class MisereChecker {
+  DecideWinner(int p1Count, int p2Count) : GameResult
+}
+class CornerChecker {
+  Check(Board board, bool noMovesLeft) : GameResult
+  DecideWinner(int p1Count, int p2Count) : GameResult
 }
 
-IWinEvaluator <|-- AlignmentWinEvaluator
-IWinEvaluator <|-- CountBasedEvaluator
-CountBasedEvaluator <|-- MajorityCountEvaluator
-CountBasedEvaluator <|-- MisereCountEvaluator
-CountBasedEvaluator <|-- CornerDominanceEvaluator
+IGameOverChecker <|-- AlignmentChecker
+IGameOverChecker <|-- CountBasedChecker
+CountBasedChecker <|-- MajorityChecker
+CountBasedChecker <|-- MisereChecker
+CountBasedChecker <|-- CornerChecker
 
 class Game {
   CheckResult() : GameResult
@@ -89,14 +100,20 @@ Move <|-- GomokuMove
 Move <|-- ReversiMove
 Move <|-- PassMove
 
-Game *-- Board
-Game --> IGameRules
-Game --> IWinEvaluator
-Game --> Player
-ComputerPlayer --> IMoveStrategy
+Game "1" *-- "1" Board
+Game --> "1" IGameRules
+Game --> "1" IGameOverChecker
+Game --> "2" Player
+ComputerPlayer --> "1" IMoveStrategy
+
 IMoveStrategy --> IGameRules
 IMoveStrategy --> Board
-IWinEvaluator --> Board
+IGameOverChecker --> Board
 GomokuSmartStrategy --> GomokuMove
 ReversiScoringStrategy --> ReversiMove
+
+GomokuRules ..> GomokuMove : creates
+ReversiRules ..> ReversiMove : creates
+RandomMoveStrategy ..> PassMove : creates
+ReversiScoringStrategy ..> PassMove : creates
 @enduml
