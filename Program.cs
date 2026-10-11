@@ -10,7 +10,7 @@
             if (args.Length > 0)
             {
                 CommandLineParser parser = new CommandLineParser();
-                config = parser.Parse(args);
+                config = parser.Parse(args); //???
 
                 // Select the factory
                 IGameFactory factory;

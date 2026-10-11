@@ -1,6 +1,6 @@
 namespace GomokuReversiApp
 {
-    // this interface defines where the next command comes from; Human(console), AI, or script (automated)
+    // this interface defines where the next command comes from; Human(interactive), AI(interactive), or script (automated)
     public interface ICommandSource
     {
         ICommand GetNextCommand(Game game);
@@ -27,7 +27,7 @@ namespace GomokuReversiApp
 
                 return new MoveCommand(move);
             }
-            else
+            else // this is for Human player
             {
                 Console.Write("Enter command: ");
 

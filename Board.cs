@@ -31,7 +31,7 @@ namespace GomokuReversiApp
             return piece == null ? 0 : piece.Owner;
         }
 
-        public Piece GetPiece(int row, int col)
+        public Piece GetPiece(int row, int col) // could be null
         {
             return cells[row, col];
         }
