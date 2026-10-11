@@ -18,8 +18,8 @@ namespace GomokuReversiApp
         private bool isRunning;
 
         // undo/redo history
-        private Stack<GameState> gameHistory;
-        private Stack<GameState> redoHistory;
+        private List<GameState> gameHistory;
+        private List<GameState> redoHistory;
 
         // constructor
         public Game(
@@ -41,8 +41,8 @@ namespace GomokuReversiApp
             TurnCount = 0;
             gameResult = GameResult.OnGoing;
 
-            gameHistory = new Stack<GameState>();
-            redoHistory = new Stack<GameState>();
+            gameHistory = new List<GameState>();
+            redoHistory = new List<GameState>();
         }
 
         // important!
@@ -183,6 +183,47 @@ namespace GomokuReversiApp
         public void QuitGame()
         {
             isRunning = false;
-        }    
+        } 
+
+        public void RestoreState(GameState state)
+        {
+            // Validate the active player
+            if (state.CurrentPlayerIndex < 0 ||
+                state.CurrentPlayerIndex >= Players.Count)
+            {
+                throw new InvalidDataException("Invalid player index.");
+            }
+
+            // Validate the number of inventories
+            if (state.PlayerInventories.Count != Players.Count)
+            {
+                throw new InvalidDataException("Invalid number of player inventories.");
+            }
+            // Restore the board
+            Board.RestoreRows(state.BoardRows);
+
+            // Restore the current player
+            CurrentPlayer = Players[state.CurrentPlayerIndex];
+
+            // Restore turn count and game result
+            TurnCount = state.TurnCount;
+            gameResult = state.GameResult;
+
+            // Restore each player's inventory
+            for (int i = 0; i < Players.Count; i++)
+            {
+                Players[i].RestoreInventory(state.PlayerInventories[i]);
+            }
+
+        } 
+
+        public void RestoreHistory( List<GameState> undoHistory, List<GameState> savedRedoHistory)
+        {
+            gameHistory.Clear(); // clears list
+            gameHistory.AddRange(undoHistory); // adds to the end of the list
+
+            redoHistory.Clear();
+            redoHistory.AddRange(savedRedoHistory);
+        }
     }
 }
