@@ -28,17 +28,17 @@ namespace GomokuReversiApp
             // 1. Immediate win move
             foreach (Move move in moves)
             {
-                GomukuMove gomukuMove = (GomukuMove)move;
-                if (gomukuMove.StoneType == 'O' && board.LongestLine(gomukuMove.Row, gomukuMove.Col, AIPlayer.Number) >= winLength)
+                GomokuMove gomokuMove = (GomokuMove)move;
+                if (gomokuMove.StoneType == 'O' && board.LongestLine(gomokuMove.Row, gomokuMove.Col, AIPlayer.Number) >= winLength)
                 {
-                    return gomukuMove;
+                    return gomokuMove;
                 }
             }
 
             // 2. Block win move of opponent
             foreach (Move move in moves)
             {
-                GomukuMove gomokuMove = (GomukuMove)move;
+                GomokuMove gomokuMove = (GomokuMove)move;
                 if (gomokuMove.StoneType == 'O' && board.LongestLine(gomokuMove.Row, gomokuMove.Col, opponent) >= winLength)
                 {
                     return gomokuMove;

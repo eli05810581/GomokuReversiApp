@@ -18,7 +18,7 @@ public class GomokuRules: IGameRules
             {
                 if (board.GetOwner(row, col) == 0) // Empty cell
                 {
-                    moves.Add(new GomukuMove(row, col, 'O'));
+                    moves.Add(new GomokuMove(row, col, 'O'));
                 }
             }
         }
@@ -54,7 +54,7 @@ public class ReversiRules: IGameRules
         int total = 0;
         for (int d = 0; d < 8; d++)
         {
-            total = CountFlipsInDirection(board, row, col, dRow[d], dCol[d], currentPlayer);
+            total += CountFlipsInDirection(board, row, col, dRow[d], dCol[d], currentPlayer);
         }
         return total;
     }
