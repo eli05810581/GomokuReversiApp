@@ -8,9 +8,11 @@ namespace GomokuReversiApp
         GameResult Check(Board board, bool noMovesLeft);
     }
 
-    public class AlignmentChecker: IGameOverChecker
+
+    public class AlignmentChecker : IGameOverChecker
     {
-        private int winLength;
+        private readonly int winLength;
+
         public AlignmentChecker(int winLength)
         {
             this.winLength = winLength;
@@ -23,17 +25,72 @@ namespace GomokuReversiApp
                 for (int col = 1; col <= board.Cols; col++)
                 {
                     int owner = board.GetOwner(row, col);
-                    if (owner == 0) continue;
-                    if (board.LongestLine(row, col, owner) >= winLength)
+
+                    if (owner == 0)
+                        continue;
+
+                    if (CountLine(board, row, col, owner) >= winLength)
                     {
-                        return owner == 1? GameResult.Player1Wins : GameResult.Player2Wins;
+                        return owner == 1
+                            ? GameResult.Player1Wins
+                            : GameResult.Player2Wins;
                     }
                 }
             }
 
             return noMovesLeft ? GameResult.Draw : GameResult.OnGoing;
         }
+
+        private int CountLine(Board board, int row, int col, int owner)
+        {
+            // Horizontal, vertical and two diagonals
+            (int dr, int dc)[] directions =
+            {
+                (0, 1),
+                (1, 0),
+                (1, 1),
+                (1, -1)
+            };
+
+            int longest = 1;
+
+            foreach (var (dr, dc) in directions)
+            {
+                int total = 1;
+
+                // Count consecutive stones in both directions
+                total += CountDirection(board, row, col, dr, dc, owner);
+                total += CountDirection(board, row, col, -dr, -dc, owner);
+
+                if (total > longest)
+                    longest = total;
+            }
+
+            return longest;
+        }
+
+        private int CountDirection(
+            Board board, int row, int col,
+            int dr, int dc, int owner)
+        {
+            int count = 0;
+
+            row += dr;
+            col += dc;
+
+            while (board.IsWithinBounds(row, col) &&
+                   board.GetOwner(row, col) == owner)
+            {
+                count++;
+
+                row += dr;
+                col += dc;
+            }
+
+            return count;
+        }
     }
+
 
     public abstract class CountBasedChecker: IGameOverChecker
     {
