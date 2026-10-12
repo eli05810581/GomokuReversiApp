@@ -16,7 +16,7 @@ namespace GomokuReversiApp
         public IGameOverChecker GameOverChecker { get; protected set; }
         public IVisibilityModel VisibilityModel { get; protected set; }
         public ICommandSource CommandSource { get; protected set; }
-        private readonly IHelpProvider helpProvider;
+        public IHelpProvider HelpProvider { get; protected set; }
 
 
         public Player CurrentPlayer { get; private set;}
@@ -51,6 +51,7 @@ namespace GomokuReversiApp
             GameOverChecker = gameOverChecker;
             VisibilityModel = visibilityModel;
             CommandSource = commandSource;
+            HelpProvider = helpProvider;
 
             CurrentPlayer = Players[0];
             TurnCount = 0;
@@ -112,10 +113,8 @@ namespace GomokuReversiApp
 
             MoveProcessor.ApplyMove(this, move);
 
-            TurnCount++;
-
             Result = GameOverChecker.Check(this);
-            EndTurn();
+            EndTurn(); // this will increment the turn count
             // if (gameResult == GameResult.OnGoing)
             //     NextPlayer();
 
@@ -133,12 +132,9 @@ namespace GomokuReversiApp
 
         public void DisplayGame()
         {
-            // in HvC the board is always shown from the human's point of view
-            Player viewer = CurrentPlayer is AIPlayer ? Players.First(p=>p is not AIPlayer) : CurrentPlayer;
-            Console.WriteLine();
-            Console.WriteLine(
-                VisibilityModel.RenderBoard(this, CurrentPlayer)
-            );
+
+                VisibilityModel.RenderBoard(Board, CurrentPlayer);
+            
 
             if (Result != GameResult.OnGoing)
             {
@@ -174,10 +170,6 @@ namespace GomokuReversiApp
         {
             if (Result != GameResult.OnGoing)
                 return false;
-
-            // Only Reversi allows passing
-            // if (MoveProcessor is not ReversiMoveProcessor)
-            //     return false;
 
             // Need to change to below, because once another game also has PASS move, need to modify the game engine
             if (!MoveProcessor.AllowPass) return false;
@@ -243,7 +235,7 @@ namespace GomokuReversiApp
                 CurrentPlayerIndex = Players.IndexOf(CurrentPlayer),
                 TurnCount = TurnCount,
                 Result = Result,
-                BoardRows = Board.CaptureRows().ToList();
+                BoardRows = Board.CaptureRows().ToList(),
                 PlayerInventories = Players.Select(p => new Dictionary<char, int?>(p.Inventory)).ToList()
             };
         }
@@ -283,7 +275,7 @@ namespace GomokuReversiApp
         public void DisplayHelp()
         {
             // Show help for current game variant
-            Console.WriteLine(helpProvider.GetHelp(this));
+            Console.WriteLine(HelpProvider.GetHelp());
         }    
 
         public void QuitGame()
