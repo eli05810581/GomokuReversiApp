@@ -113,9 +113,8 @@ namespace GomokuReversiApp
 
         public void DisplayGame()
         {
-            Console.WriteLine(
-                visibilityModel.RenderBoard(this, CurrentPlayer)
-            );
+            
+            VisibilityModel.RenderBoard(Board, CurrentPlayer);
 
             Console.WriteLine(
                 $"Player {CurrentPlayer.Name}'s turn."
