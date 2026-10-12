@@ -11,12 +11,13 @@ namespace GomokuReversiApp
         public GameResult GameResult { get; set; }
 
         // Each string represents one row of the board.
-        public string[] BoardRows { get; set; } =
-            Array.Empty<string>();
+        public List<string> BoardRows { get; set; } = new List<string>();
 
-        // Remaining special stones for players 1 and 2.
-        public int[] HeavyStones { get; set; } = new int[2];
-
-        public int[] EraserStones { get; set; } = new int[2];
+        // Each player's remaining stones/disks.
+        // Key = stone/disk symbol
+        // Value = remaining quantity (null means unlimited)
+        public List<Dictionary<char, int?>> PlayerInventories { get; set; }
+            = new List<Dictionary<char, int?>>();
+    
     }
 }
