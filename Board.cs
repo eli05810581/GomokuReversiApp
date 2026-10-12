@@ -1,28 +1,30 @@
-using System.Collections.Concurrent;
 
 namespace GomokuReversiApp
 {
     public class Board
     {
         private Piece[,] cells;
-        public int Rows {get;}
-        public int Cols {get;}
+
+        public int Rows { get; }
+        public int Cols { get; }
 
         public Board(int rows, int cols)
         {
             Rows = rows;
             Cols = cols;
-            cells = new Piece[rows + 1, cols + 1]; // Using based 1 index
+            cells = new Piece[rows + 1, cols + 1]; // 1-based indexing
         }
 
-        public bool IsBounds(int row, int col)
+        public bool IsWithinBounds(int row, int col)
         {
-            return row >= 1 && row <= Rows && col >= 1 && col <= Cols;
+            return row >= 1 && row <= Rows &&
+                   col >= 1 && col <= Cols;
         }
 
         public bool IsCorner(int row, int col)
         {
-            return (row == 1 || row == Rows) && (col == 1 || col == Cols);
+            return (row == 1 || row == Rows) &&
+                   (col == 1 || col == Cols);
         }
 
         public int GetOwner(int row, int col)
@@ -31,26 +33,25 @@ namespace GomokuReversiApp
             return piece == null ? 0 : piece.Owner;
         }
 
-        public Piece GetPiece(int row, int col) // could be null
+        public Piece GetCell(int row, int col) // Can return null
         {
             return cells[row, col];
         }
 
-        public void PlacePiece(int row, int col, Piece piece)
+        public void SetCell(int row, int col, Piece piece)
         {
             cells[row, col] = piece;
         }
 
-        public Piece RemovePiece(int row, int col)
+        public void ClearCell(int row, int col)
         {
-            Piece piece = cells[row, col];
             cells[row, col] = null;
-            return piece;
         }
 
         public int CountPieces(int owner)
         {
             int countPieces = 0;
+
             for (int row = 1; row <= Rows; row++)
             {
                 for (int col = 1; col <= Cols; col++)
@@ -64,37 +65,82 @@ namespace GomokuReversiApp
 
             return countPieces;
         }
-
-        public int LongestLine(int row, int col, int owner)
+        private void ValidatePosition(int row, int col)
         {
-            int[] dRow = { 0, 1, 1, 1};
-            int[] dCol = { 1, 0, 1, -1};
-
-            int best = 1;
-            for (int d = 0; d < 4; d++)
-            {
-                int total = 1 + CountDirection(row, col, dRow[d], dCol[d], owner) + CountDirection(row, col, -dRow[d], -dCol[d], owner);
-
-                if (total > best) best = total;
-            }
-
-            return best;
+            if (!IsWithinBounds(row, col))
+                throw new ArgumentOutOfRangeException(
+                    nameof(row), "Position is outside the board.");
         }
-
-        private int CountDirection(int row, int col, int dRow, int dCol, int owner)
+        
+        public void RestoreRows(IReadOnlyList<string> rows)
         {
-            int count = 0;
-            row += dRow;
-            col += dCol;
-            while (IsBounds(row, col) && GetOwner(row, col) == owner)
+            // Check board dimensions
+            if (rows.Count != Rows)
+                throw new InvalidDataException("Invalid number of board rows.");
+
+            for (int row = 1; row <= Rows; row++)
             {
-                count++;
-                row += dRow;
-                col += dCol;
+                string rowData = rows[row - 1];
+
+                if (rowData == null || rowData.Length != Cols)
+                    throw new InvalidDataException("Invalid board row length.");
+
+                for (int col = 1; col <= Cols; col++)
+                {
+                    char symbol = rowData[col - 1];
+
+                    Piece? piece = symbol switch
+                    {
+                        '.' => null,
+                        'X' => new OrdinaryStone(1),
+                        'O' => new OrdinaryStone(2),
+                        '#' => new HeavyStone(1),
+                        '@' => new HeavyStone(2),
+                        'B' => new Disc(1),
+                        'W' => new Disc(2),
+
+                        _ => throw new InvalidDataException(
+                            $"Unknown piece symbol: {symbol}")
+                    };
+
+                    SetCell(row, col, piece);
+                }
+            }
+        }
+    
+        public string[] CaptureRows() // returns string representing board row state, for State
+        {
+            string[] rows = new string[Rows];
+
+            for (int row = 1; row <= Rows; row++)
+            {
+                char[] rowData = new char[Cols];
+
+                for (int col = 1; col <= Cols; col++)
+                {
+                    Piece? piece = GetCell(row, col);
+
+                    rowData[col - 1] = piece switch
+                    {
+                        null => '.',
+                        OrdinaryStone { Owner: 1 } => 'X',
+                        OrdinaryStone { Owner: 2 } => 'O',
+                        HeavyStone { Owner: 1 } => '#',
+                        HeavyStone { Owner: 2 } => '@',
+                        Disc { Owner: 1 } => 'B',
+                        Disc { Owner: 2 } => 'W',
+
+                        _ => throw new InvalidDataException(
+                            "Unknown piece type or owner.")
+                    };
+                }
+
+                rows[row - 1] = new string(rowData);
             }
 
-            return count;
+            return rows;
         }
     }
-
 }
+
+

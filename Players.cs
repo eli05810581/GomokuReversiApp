@@ -1,19 +1,22 @@
+
 namespace GomokuReversiApp
 {
-
     public abstract class Player
-    {   
-        public string Name {get;}
-        public int Number {get;} // 1 or 2
-        public Dictionary<char, int?> Inventory { get; private set; } // contains stone/disk symbol and amount remaining. if null amount is unlimited
-        protected Player(int number)
-        {
-            Number = number;
-        }
-        public abstract Move GetMove(Board board, IGameRules rules); //?????
+    {
+        public string Name { get; }
+        public int Number { get; } // 1 or 2
 
-        public Player(Dictionary<char, int?> inventory)
+        // Stone/disk symbol and quantity remaining.
+        // null means unlimited.
+        public Dictionary<char, int?> Inventory { get; private set; }
+
+        protected Player(
+            string name,
+            int number,
+            Dictionary<char, int?> inventory)
         {
+            Name = name;
+            Number = number;
             Inventory = new Dictionary<char, int?>(inventory);
         }
 
@@ -40,21 +43,55 @@ namespace GomokuReversiApp
             }
         }
 
-        public void RestoreInventory(Dictionary<char, int?> inventory) // used for Load game
+        // Used by Load Game and Undo/Redo
+        public void RestoreInventory(Dictionary<char, int?> inventory)
         {
             Inventory = new Dictionary<char, int?>(inventory);
         }
     }
 
+    // Human moves are obtained through InteractiveCommandSource
+    public class HumanPlayer : Player
+    {
+        public HumanPlayer(
+            string name,
+            int number,
+            Dictionary<char, int?> inventory)
+            : base(name, number, inventory)
+        {
+        }
+    }
 
+    // AI moves are generated using a move strategy
+    public class AIPlayer : Player
+    {
+        private readonly MoveStrategyBase moveStrategy;
+
+        public AIPlayer(
+            string name,
+            int number,
+            Dictionary<char, int?> inventory,
+            MoveStrategyBase moveStrategy)
+            : base(name, number, inventory)
+        {
+            this.moveStrategy = moveStrategy;
+        }
+
+        public Move GetMove(Game game)
+        {
+            return moveStrategy.ChooseMove(game);
+        }
+    }
+
+    // Automated moves are obtained through AutomatedCommandSource
     public class ScriptedPlayer : Player
     {
         public ScriptedPlayer(
             string name,
-            Dictionary<char, int?> inventory): base(name, inventory)
+            int number,
+            Dictionary<char, int?> inventory)
+            : base(name, number, inventory)
         {
         }
     }
-    
-
 }

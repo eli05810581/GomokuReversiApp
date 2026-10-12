@@ -18,12 +18,10 @@ namespace GomokuReversiApp
     {
         public int Row {get;}
         public int Col {get;}
-        public int FlipCount {get;} // the number of opponent's pieces to be flipped, calculated by ReversiRules
-        public ReversiMove(int row, int col, int flipCount)
+        public ReversiMove(int row, int col)
         {
             Row = row;
             Col = col;
-            FlipCount = flipCount;
         }
     }
 

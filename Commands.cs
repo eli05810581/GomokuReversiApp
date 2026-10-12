@@ -28,17 +28,8 @@ namespace GomokuReversiApp
         }
     }
 
-    // Passes the current player's turn when allowed.
-    public class PassCommand : ICommand
-    {
-        public void Execute(Game game)
-        {
-            if (!game.PassTurn())
-            {
-                Console.WriteLine("Passing is not allowed right now.");
-            }
-        }
-    }
+    // no pass command, passMove : Move
+
 
     // Requests undo of the previous turn.
     public class UndoCommand : ICommand

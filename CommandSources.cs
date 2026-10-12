@@ -9,7 +9,7 @@ namespace GomokuReversiApp
     {
         private InputParser inputParser;
 
-        public HumanVsAICommandSource(InputParser inputParser)
+        public InteractiveCommandSource(InputParser inputParser)
         {
             this.inputParser = inputParser;
         }
@@ -20,10 +20,10 @@ namespace GomokuReversiApp
             {
                 if (game.MustPass())
                 {
-                    return new PassCommand();
+                    return new MoveCommand(new PassMove());
                 }
 
-                Move move = aiPlayer.MoveStrategy.GenerateMove(game);
+                Move move = aiPlayer.GetMove(game);
 
                 return new MoveCommand(move);
             }
