@@ -184,9 +184,7 @@ namespace GomokuReversiApp
         }
 
         // Create a separate inventory for each player
-        private Dictionary<char, int?> CreateInventory(
-            GameVariant variant
-        )
+        private Dictionary<char, int?> CreateInventory(GameVariant variant)
         {
             switch (variant)
             {
@@ -285,24 +283,25 @@ namespace GomokuReversiApp
     
         public ICommandSource CreateCommandSource(LaunchConfiguration config)
         {
+            // Create the appropriate move parser for the game variant
+            IMoveParser moveParser = CreateMoveParser(config.Variant);
+
+            InputParser inputParser = new InputParser(moveParser);
+
             switch (config.GameMode)
             {
                 case GameMode.HumanVsHuman:
                 case GameMode.HumanVsAI:
-                    return new InteractiveCommandSource(
-                        new InputParser()
-                    );
+                    return new InteractiveCommandSource(inputParser);
 
                 case GameMode.Automated:
                     return new AutomatedCommandSource(
                         config.MoveSequence,
-                        new InputParser()
+                        inputParser
                     );
 
                 default:
-                    throw new ArgumentException(
-                        "Invalid game mode."
-                    );
+                    throw new ArgumentException("Invalid game mode.");
             }
         }
     }
@@ -512,13 +511,24 @@ namespace GomokuReversiApp
             return new ReversiMoveProcessor();
         }
 
-        public IGameOverChecker CreateGameOverChecker(
-            GameVariant variant
-        )
+        public IGameOverChecker CreateGameOverChecker( GameVariant variant)
         {
-            ValidateVariant(variant);
+            switch (variant)
+            {
+                case GameVariant.ReversiStandard:
+                    return new MajorityChecker();
 
-            return new ReversiGameOverChecker(variant);
+                case GameVariant.ReversiAnti:
+                    return new MisereChecker();
+
+                case GameVariant.ReversiCorner:
+                    return new CornerChecker();
+
+                default:
+                    throw new ArgumentException(
+                        "Invalid Reversi variant."
+                    );
+            }
         }
 
         public IVisibilityModel CreateVisibilityModel(
@@ -535,20 +545,18 @@ namespace GomokuReversiApp
         )
         {
             ValidateVariant(config.Variant);
+            // Create the appropriate move parser for the game variant
+            IMoveParser moveParser = CreateMoveParser(config.Variant);
 
+            InputParser inputParser = new InputParser(moveParser);
             switch (config.GameMode)
             {
                 case GameMode.HumanVsHuman:
                 case GameMode.HumanVsAI:
-                    return new InteractiveCommandSource(
-                        new InputParser()
-                    );
+                    return new InteractiveCommandSource(inputParser);
 
                 case GameMode.Automated:
-                    return new AutomatedCommandSource(
-                        config.MoveSequence,
-                        new InputParser()
-                    );
+                    return new AutomatedCommandSource(config.MoveSequence,inputParser);
 
                 default:
                     throw new ArgumentException(

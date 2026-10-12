@@ -419,7 +419,8 @@
             return savedData;
         } 
 
-        private static GameState ParseGameState(Dictionary<string, string> fields)
+        private static GameState ParseGameState(
+            Dictionary<string, string> fields)
         {
             GameState state = new GameState
             {
@@ -432,36 +433,41 @@
                 GameResult = Enum.Parse<GameResult>(
                     fields["GameResult"]),
 
-                BoardRows = fields["Board"].Split('/'),
+                BoardRows = fields["Board"].Split('/').ToList(),
 
-                HeavyStones = ParseStoneCounts(fields, "HeavyStones"),
-
-                EraserStones = ParseStoneCounts(fields, "EraserStones")
+                PlayerInventories = new List<Dictionary<char, int?>>
+                {
+                    ParseInventory(fields["Player1Inventory"]),
+                    ParseInventory(fields["Player2Inventory"])
+                }
             };
 
             return state;
         }
 
-        private static int[] ParseStoneCounts(Dictionary<string, string> fields,string key)
+        // helper methods
+        private static Dictionary<char, int?> ParseInventory(string input)
         {
-            // Standard Gomoku and Reversi have no special stones
-            if (!fields.TryGetValue(key, out string? value))
+            Dictionary<char, int?> inventory =
+                new Dictionary<char, int?>();
+
+            string[] items = input.Split(',');
+
+            foreach (string item in items)
             {
-                return new int[] { 0, 0 };
+                string[] parts = item.Split(':');
+
+                char symbol = char.Parse(parts[0]);
+
+                int? amount = parts[1] == "null"
+                    ? null
+                    : int.Parse(parts[1]);
+
+                inventory.Add(symbol, amount);
             }
 
-            int[] counts = value.Split(',')
-                .Select(count => int.Parse(count))
-                .ToArray();
-
-            if (counts.Length != 2)
-            {
-                throw new FormatException($"Invalid {key} data.");
-            }
-
-            return counts;
+            return inventory;
         }
-
 
     }
     

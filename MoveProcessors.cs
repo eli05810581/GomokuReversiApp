@@ -7,6 +7,8 @@ namespace GomokuReversiApp
     {
         bool IsMoveLegal(Game game, Move move);
         void ApplyMove(Game game, Move move);
+        bool HasLegalMoves(Game game, Player player);
+        
     }
 
     // **** GOMOKU STANDARD ****
@@ -39,6 +41,22 @@ namespace GomokuReversiApp
                 gomokuMove.Col,
                 new OrdinaryStone(game.CurrentPlayer.Number)
             );
+        }
+    
+        public bool HasLegalMoves(Game game, Player player)
+        {
+            Board board = game.Board;
+
+            for (int row = 1; row <= board.Rows; row++)
+            {
+                for (int col = 1; col <= board.Cols; col++)
+                {
+                    if (board.GetCell(row, col) == null)
+                        return true;
+                }
+            }
+
+            return false;
         }
     }
     // **** GOMOKU PLUS ****
@@ -119,11 +137,47 @@ namespace GomokuReversiApp
             }
         }
 
+        public bool HasLegalMoves(Game game, Player player)
+        {
+            Board board = game.Board;
+
+            bool hasEraser =
+                player.Inventory.TryGetValue('E', out int? eraserCount) &&
+                (eraserCount == null || eraserCount > 0);
+
+            for (int row = 1; row <= board.Rows; row++)
+            {
+                for (int col = 1; col <= board.Cols; col++)
+                {
+                    Piece? piece = board.GetCell(row, col);
+
+                    // Ordinary stones can be placed on empty cells
+                    if (piece == null)
+                        return true;
+
+                    // Erasers can remove opponent's ordinary stones
+                    if (hasEraser &&
+                        piece is OrdinaryStone &&
+                        piece.Owner != player.Number)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
     // **** REVERSI ****
     public class ReversiMoveProcessor : IMoveProcessor
-    {   
+    {
         // dr = delta row, dc = delta column
-        private static readonly (int dr, int dc)[] Directions = {(-1, -1), (-1, 0), (-1, 1),( 0, -1),( 0, 1),( 1, -1), ( 1, 0), ( 1, 1)}; // 8 directions
+        private static readonly (int dr, int dc)[] Directions =
+        {
+            (-1, -1), (-1, 0), (-1, 1),
+            ( 0, -1),          ( 0, 1),
+            ( 1, -1), ( 1, 0), ( 1, 1)
+        };
 
         public bool IsMoveLegal(Game game, Move move)
         {
@@ -137,19 +191,21 @@ namespace GomokuReversiApp
                 return false;
 
             // Must capture at least one opponent disc
-            return GetCapturedPositions(game, reversiMove).Count > 0;
+            return GetCapturedPositions(
+                game, reversiMove, game.CurrentPlayer
+            ).Count > 0;
         }
 
         public void ApplyMove(Game game, Move move)
         {
-            // Assume Game.ProcessMove() has already validated the move
+            // Assume Game.PlayMove() has already validated the move
             ReversiMove reversiMove = (ReversiMove)move;
 
             Player player = game.CurrentPlayer;
 
             // Find all opponent discs that will be flipped
             List<(int Row, int Col)> captured =
-                GetCapturedPositions(game, reversiMove);
+                GetCapturedPositions(game, reversiMove, player);
 
             // Place the current player's disc
             game.Board.SetCell(
@@ -169,11 +225,35 @@ namespace GomokuReversiApp
             }
         }
 
-        // Helper methods
-        private List<(int Row, int Col)> GetCapturedPositions(Game game,  ReversiMove move) // finds a list of cells that would have their disks captured
+        // Check whether a specified player has any legal moves
+        public bool HasLegalMoves(Game game, Player player)
+        {
+            Board board = game.Board;
+
+            for (int row = 1; row <= board.Rows; row++)
+            {
+                for (int col = 1; col <= board.Cols; col++)
+                {
+                    // A disc can only be placed on an empty cell
+                    if (board.GetCell(row, col) != null)
+                        continue;
+
+                    ReversiMove move = new ReversiMove(row, col);
+
+                    // A legal move must capture at least one opponent disc
+                    if (GetCapturedPositions(game, move, player).Count > 0)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Find all opponent discs that would be captured
+        private List<(int Row, int Col)> GetCapturedPositions(
+            Game game, ReversiMove move, Player player)
         {
             var captured = new List<(int Row, int Col)>();
-            Player player = game.CurrentPlayer;
 
             foreach (var (dr, dc) in Directions)
             {
@@ -209,87 +289,8 @@ namespace GomokuReversiApp
 
             return captured;
         }
-    
-        public int CountFlips(Game game, ReversiMove move)
-        {
-            return GetCapturedPositions(game, move).Count;
-        }
 
-    }
-    }
-
-    // **** Reversi ****
-    public class ReversiMoveProcessor : IMoveProcessor
-    {
-        // Eight possible directions for capturing discs
-        private static readonly (int dr, int dc)[] Directions =
-        {
-            (-1, -1), (-1, 0), (-1, 1),
-            (0, -1),           (0, 1),
-            (1, -1),  (1, 0),  (1, 1)
-        };
-
-        // Check whether a move is legal
-        public bool IsMoveLegal(Game game, Move move)
-        {
-            // A player may pass only when no legal moves exist
-            if (move is PassMove)
-            {
-                return !HasLegalMoves(game);
-            }
-
-            // Only ReversiMove is accepted for disc placement
-            if (move is not ReversiMove reversiMove)
-                return false;
-
-            Board board = game.Board;
-
-            // Check board boundaries
-            if (!board.IsWithinBounds(reversiMove.Row, reversiMove.Col))
-                return false;
-
-            // Target cell must be empty
-            if (board.GetCell(reversiMove.Row, reversiMove.Col) != null)
-                return false;
-
-            // Move must capture at least one opponent disc
-            return GetCapturedPositions(game, reversiMove).Count > 0;
-        }
-
-        // Apply a validated move
-        public void ApplyMove(Game game, Move move)
-        {
-            // Passing does not change the board
-            if (move is PassMove)
-                return;
-
-            ReversiMove reversiMove = (ReversiMove)move;
-
-            Player player = game.CurrentPlayer;
-
-            // Find captured discs before modifying the board
-            List<(int Row, int Col)> captured =
-                GetCapturedPositions(game, reversiMove);
-
-            // Place the current player's disc
-            game.Board.SetCell(
-                reversiMove.Row,
-                reversiMove.Col,
-                new Disc(player.Number)
-            );
-
-            // Flip captured opponent discs
-            foreach (var (row, col) in captured)
-            {
-                game.Board.SetCell(
-                    row,
-                    col,
-                    new Disc(player.Number)
-                );
-            }
-        }
-
-        // Return the number of discs captured by a proposed move
+        // Count the discs flipped by the current player's proposed move
         public int CountFlips(Game game, ReversiMove move)
         {
             if (!game.Board.IsWithinBounds(move.Row, move.Col))
@@ -298,75 +299,15 @@ namespace GomokuReversiApp
             if (game.Board.GetCell(move.Row, move.Col) != null)
                 return 0;
 
-            return GetCapturedPositions(game, move).Count;
-        }
-
-        // Find all opponent discs captured by a proposed move
-        private List<(int Row, int Col)> GetCapturedPositions(
-            Game game, ReversiMove move)
-        {
-            List<(int Row, int Col)> captured =
-                new List<(int Row, int Col)>();
-
-            Board board = game.Board;
-
-            int player = game.CurrentPlayer.Number;
-            int opponent = 3 - player;
-
-            foreach (var (dr, dc) in Directions)
-            {
-                List<(int Row, int Col)> directionCaptured =
-                    new List<(int Row, int Col)>();
-
-                int row = move.Row + dr;
-                int col = move.Col + dc;
-
-                // Collect consecutive opponent discs
-                while (board.IsWithinBounds(row, col) &&
-                       board.GetOwner(row, col) == opponent)
-                {
-                    directionCaptured.Add((row, col));
-
-                    row += dr;
-                    col += dc;
-                }
-
-                // Captures require at least one opponent disc,
-                // followed by a disc owned by the current player
-                if (directionCaptured.Count > 0 &&
-                    board.IsWithinBounds(row, col) &&
-                    board.GetOwner(row, col) == player)
-                {
-                    captured.AddRange(directionCaptured);
-                }
-            }
-
-            return captured;
-        }
-
-        // Determine whether the current player has any legal placements
-        private bool HasLegalMoves(Game game)
-        {
-            Board board = game.Board;
-
-            for (int row = 1; row <= board.Rows; row++)
-            {
-                for (int col = 1; col <= board.Cols; col++)
-                {
-                    if (board.GetCell(row, col) != null)
-                        continue;
-
-                    ReversiMove move = new ReversiMove(row, col);
-
-                    if (GetCapturedPositions(game, move).Count > 0)
-                        return true;
-                }
-            }
-
-            return false;
+            return GetCapturedPositions(
+                game, move, game.CurrentPlayer
+            ).Count;
         }
     }
+
 }
+
+
 
 
 

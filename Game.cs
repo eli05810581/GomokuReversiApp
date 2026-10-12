@@ -6,16 +6,19 @@ namespace GomokuReversiApp
         public Board Board { get; private set;}
         public List<Player> Players {get; private set;}
 
-        private IMoveProcessor moveProcessor;
-        private IGameOverChecker gameOverChecker;
-        private IVisibilityModel visibilityModel;
-        private ICommandSource commandSource;
-        public bool LoadRequested { get; private set; } // for terminating current game and loading new game with program.
+        // Strategies
+        public IMoveParser MoveParser { get; private set; } 
+        public IMoveProcessor MoveProcessor { get; protected set; }
+        public IGameOverChecker GameOverChecker { get; protected set; }
+        public IVisibilityModel VisibilityModel { get; protected set; }
+        public ICommandSource CommandSource { get; protected set; }
+
 
         public Player CurrentPlayer { get; private set;}
         public int TurnCount { get; private set;}
         public GameResult gameResult {get; private set;}
         private bool isRunning;
+        private bool LoadRequested;
 
         // undo/redo history
         private List<GameState> gameHistory;
@@ -25,17 +28,21 @@ namespace GomokuReversiApp
         public Game(
             Board board,
             List<Player> players,
+            IMoveParser moveParser,
             IMoveProcessor moveProcessor,
             IGameOverChecker gameOverChecker,
-            IVisibilityModel visibilityModel
+            IVisibilityModel visibilityModel,
+            ICommandSource commandSource
         )
         {
             Board = board;
             Players = players;
 
-            this.moveProcessor = moveProcessor;
-            this.gameOverChecker = gameOverChecker;
-            this.visibilityModel = visibilityModel;
+            MoveParser = moveParser;
+            MoveProcessor = moveProcessor;
+            GameOverChecker = gameOverChecker;
+            VisibilityModel = visibilityModel;
+            CommandSource = commandSource;
 
             CurrentPlayer = Players[0];
             TurnCount = 0;
@@ -47,19 +54,24 @@ namespace GomokuReversiApp
 
         // important!
         public bool PlayGame()
-        {       
+        {
+            if (CommandSource == null)
+            {
+                throw new InvalidOperationException(
+                    "Command source has not been configured."
+                );
+            }
+
             isRunning = true;
             LoadRequested = false;
-            
-            // main game loop:
-            while (isRunning && gameResult ==GameResult.OnGoing)
+
+            while (isRunning && gameResult == GameResult.OnGoing)
             {
                 DisplayGame();
-                // Obtain the next command from the user, AI, or script
-                ICommand command = commandSource.GetNextCommand(this); 
+
+                ICommand command = CommandSource.GetNextCommand(this);
 
                 command.Execute(this);
-
             }
 
             if (gameResult != GameResult.OnGoing)
@@ -68,7 +80,6 @@ namespace GomokuReversiApp
             }
 
             return LoadRequested;
-
         }
 
         // implements a single move; strategy pattern handles game-specific rules
@@ -77,17 +88,22 @@ namespace GomokuReversiApp
             if (gameResult != GameResult.OnGoing)
                 return false;
 
+            if (move is PassMove)
+                return PassTurn();
+
             if (MustPass())
                 return false;
 
-            if (!moveProcessor.IsMoveLegal(this, move))
+            if (!MoveProcessor.IsMoveLegal(this, move))
                 return false;
 
             SaveHistory();
 
-            moveProcessor.ApplyMove(this, move);
+            MoveProcessor.ApplyMove(this, move);
 
-            gameResult = gameOverChecker.CheckGameOver(this);
+            TurnCount++;
+
+            gameResult = GameOverChecker.Check(this);
 
             if (gameResult == GameResult.OnGoing)
                 NextPlayer();
@@ -128,11 +144,14 @@ namespace GomokuReversiApp
         public bool MustPass()
         {
             if (gameResult != GameResult.OnGoing)
-            {
                 return false;
-            }
 
-            return moveProcessor.CanPass(this);
+            // Only Reversi allows passing
+            if (MoveProcessor is not ReversiMoveProcessor)
+                return false;
+
+            return !MoveProcessor.HasLegalMoves(this, CurrentPlayer);
+
         }
 
         // Explicit pass command
@@ -145,7 +164,7 @@ namespace GomokuReversiApp
 
             NextPlayer();
 
-            gameResult = gameOverChecker.CheckGameOver(this);
+            gameResult = GameOverChecker.Check(this);
 
             return true;
         }

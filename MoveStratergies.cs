@@ -2,68 +2,208 @@ namespace GomokuReversiApp
 {
     public interface IMoveStrategy
     {
-    Move ChooseMove(Board board, IGameRules rules, Player AIPlayer);
+        Move ChooseMove(Game game);
+        List<Move> GetLegalMoves(Game game);
     }
-    public class RandomMoveStrategy: IMoveStrategy
-    {
-        private Random random = new Random();
 
-        public Move ChooseMove(Board board, IGameRules rules, Player AIPlayer)
+    public abstract class MoveStrategyBase : IMoveStrategy
+    {
+        public abstract Move ChooseMove(Game game);
+
+        public List<Move> GetLegalMoves(Game game)
         {
-            List<Move> moves = rules.GetLegalMoves(board, AIPlayer);
-            if (moves.Count == 0) return new PassMove(); // only occurs in Reversi games
+            List<Move> moves = new List<Move>();
+
+            IMoveProcessor processor = game.MoveProcessor;
+
+            for (int row = 1; row <= game.Board.Rows; row++)
+            {
+                for (int col = 1; col <= game.Board.Cols; col++)
+                {
+                    if (processor is GomokuPlusMoveProcessor)
+                    {
+                        char[] stoneTypes = { 'O', 'H', 'E' };
+
+                        foreach (char stoneType in stoneTypes)
+                        {
+                            GomokuMove move =
+                                new GomokuMove(row, col, stoneType);
+
+                            if (processor.IsMoveLegal(game, move))
+                                moves.Add(move);
+                        }
+                    }
+                    else if (processor is GomokuMoveProcessor)
+                    {
+                        GomokuMove move =
+                            new GomokuMove(row, col, 'O');
+
+                        if (processor.IsMoveLegal(game, move))
+                            moves.Add(move);
+                    }
+                    else if (processor is ReversiMoveProcessor)
+                    {
+                        ReversiMove move =
+                            new ReversiMove(row, col);
+
+                        if (processor.IsMoveLegal(game, move))
+                            moves.Add(move);
+                    }
+                    else
+                    {
+                        throw new NotSupportedException(
+                            "Unknown move processor.");
+                    }
+                }
+            }
+
+            return moves;
+        }
+    }
+
+    public class RandomMoveStrategy : MoveStrategyBase
+    {
+        private readonly Random random = new Random();
+
+        public override Move ChooseMove(Game game)
+        {
+            List<Move> moves = GetLegalMoves(game);
+
+            if (moves.Count == 0)
+            {
+                // Passing only applies to Reversi
+                if (game.MoveProcessor is ReversiMoveProcessor)
+                    return new PassMove();
+
+                throw new InvalidOperationException(
+                    "No legal Gomoku moves available.");
+            }
+
             return moves[random.Next(moves.Count)];
         }
     }
 
-    public class GomokuSmartStrategy: IMoveStrategy
+    public class GomokuSmartStrategy : MoveStrategyBase
     {
-        private int winLength;
-        private Random random = new Random();
-        public Move ChooseMove(Board board, IGameRules rules, Player AIPlayer)
-        {
-            List<Move> moves = rules.GetLegalMoves(board, AIPlayer);
-            int opponent = 3 - AIPlayer.Number;
+        private readonly int winLength;
+        private readonly Random random = new Random();
 
-            // 1. Immediate win move
+        public GomokuSmartStrategy(int winLength = 5)
+        {
+            this.winLength = winLength;
+        }
+
+        public override Move ChooseMove(Game game)
+        {
+            List<Move> moves = GetLegalMoves(game);
+
+            if (moves.Count == 0)
+                throw new InvalidOperationException(
+                    "No legal Gomoku moves available.");
+
+            Board board = game.Board;
+            int player = game.CurrentPlayer.Number;
+            int opponent = 3 - player;
+
+            // 1. Immediate winning move
             foreach (Move move in moves)
             {
-                GomokuMove gomokuMove = (GomokuMove)move;
-                if (gomokuMove.StoneType == 'O' && board.LongestLine(gomokuMove.Row, gomokuMove.Col, AIPlayer.Number) >= winLength)
+                if (move is GomokuMove gomokuMove &&
+                    gomokuMove.StoneType == 'O' &&
+                    CountLine(board, gomokuMove.Row, gomokuMove.Col,
+                            player) >= winLength)
                 {
                     return gomokuMove;
                 }
             }
 
-            // 2. Block win move of opponent
+            // 2. Block opponent's winning move
             foreach (Move move in moves)
             {
-                GomokuMove gomokuMove = (GomokuMove)move;
-                if (gomokuMove.StoneType == 'O' && board.LongestLine(gomokuMove.Row, gomokuMove.Col, opponent) >= winLength)
+                if (move is GomokuMove gomokuMove &&
+                    gomokuMove.StoneType == 'O' &&
+                    CountLine(board, gomokuMove.Row, gomokuMove.Col,
+                            opponent) >= winLength)
                 {
                     return gomokuMove;
                 }
             }
 
-            // 3. Random move
+            // 3. Random legal move
             return moves[random.Next(moves.Count)];
         }
-    }
 
-    public abstract class ReversiScoringStrategy: IMoveStrategy
-    {
-        public Move ChooseMove(Board board, IGameRules rules, Player AIPlayer)
+        private int CountLine(Board board, int row, int col, int owner)
         {
-            List<Move> moves = rules.GetLegalMoves(board, AIPlayer);
+            (int dr, int dc)[] directions =
+            {
+                (0, 1),
+                (1, 0),
+                (1, 1),
+                (1, -1)
+            };
 
-            if (moves.Count == 0) return new PassMove();
+            int longest = 1;
 
-            ReversiMove best = (ReversiMove)moves[0]; // Pick the first move of all legal move to be the best initially
+            foreach (var (dr, dc) in directions)
+            {
+                int total = 1;
+
+                total += CountDirection(board, row, col, dr, dc, owner);
+                total += CountDirection(board, row, col, -dr, -dc, owner);
+
+                if (total > longest)
+                    longest = total;
+            }
+
+            return longest;
+        }
+
+        private int CountDirection(
+            Board board, int row, int col,
+            int dr, int dc, int owner)
+        {
+            int count = 0;
+
+            row += dr;
+            col += dc;
+
+            while (board.IsWithinBounds(row, col) &&
+                board.GetOwner(row, col) == owner)
+            {
+                count++;
+                row += dr;
+                col += dc;
+            }
+
+            return count;
+        }
+    }
+    
+    public abstract class ReversiScoringStrategy : MoveStrategyBase
+    {
+        public override Move ChooseMove(Game game)
+        {
+            List<Move> moves = GetLegalMoves(game);
+
+            if (moves.Count == 0)
+                return new PassMove();
+
+            if (game.MoveProcessor is not ReversiMoveProcessor processor)
+                throw new InvalidOperationException(
+                    "Reversi strategy requires ReversiMoveProcessor.");
+
+            ReversiMove best = (ReversiMove)moves[0];
             int bestScore = int.MinValue;
-            foreach(Move move in moves)
+
+            foreach (Move move in moves)
             {
                 ReversiMove reversiMove = (ReversiMove)move;
-                int score = Score(board, reversiMove);
+
+                int flips = processor.CountFlips(game, reversiMove);
+
+                int score = Score(game.Board, reversiMove, flips);
+
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -74,34 +214,37 @@ namespace GomokuReversiApp
             return best;
         }
 
-        protected abstract int Score(Board board, ReversiMove move);
+        protected abstract int Score(
+            Board board, ReversiMove move, int flips);
     }
-
-    public class GreedyReversiStrategy: ReversiScoringStrategy
+    
+    public class GreedyReversiStrategy : ReversiScoringStrategy
     {
-        protected override int Score(Board board, ReversiMove move)
+        protected override int Score(
+            Board board, ReversiMove move, int flips)
         {
-            return move.FlipCount;
+            return flips;
         }
     }
 
-    public class CornerReversiStrategy: ReversiScoringStrategy
+    public class CornerReversiStrategy : ReversiScoringStrategy
     {
-        protected override int Score(Board board, ReversiMove move)
+        protected override int Score(
+            Board board, ReversiMove move, int flips)
         {
             int bonus = board.IsCorner(move.Row, move.Col) ? 1000 : 0;
-            return bonus + move.FlipCount;
+
+            return bonus + flips;
         }
     }
-
-    public class AntiReversiStrategy: ReversiScoringStrategy
+    public class AntiReversiStrategy : ReversiScoringStrategy
     {
-        protected override int Score(Board board, ReversiMove move)
+        protected override int Score(
+            Board board, ReversiMove move, int flips)
         {
             int penalty = board.IsCorner(move.Row, move.Col) ? 1000 : 0;
-            return -move.FlipCount - penalty;
+
+            return -flips - penalty;
         }
     }
-
-
 }
