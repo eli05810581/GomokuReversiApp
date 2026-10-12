@@ -269,10 +269,10 @@ namespace GomokuReversiApp
             {
                 case GameVariant.GomokuStandard:
                 case GameVariant.GomokuPlus:
-                    return new FullVisibilityModel();
+                    return new FullVisibility();
 
                 case GameVariant.GomokuFog:
-                    return new FogVisibilityModel();
+                    return new FogVisibility();
 
                 default:
                     throw new ArgumentException(
@@ -537,7 +537,7 @@ namespace GomokuReversiApp
         {
             ValidateVariant(variant);
 
-            return new FullVisibilityModel();
+            return new FullVisibility();
         }
 
         public ICommandSource CreateCommandSource(
