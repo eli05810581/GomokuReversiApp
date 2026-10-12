@@ -1,3 +1,5 @@
+using GomokuReversiApp;
+
 namespace GomokuReversiApp
 {
     using System;
@@ -5,35 +7,69 @@ namespace GomokuReversiApp
     // move processors receive a syntactly correct move object, they check if the move is legal then apply the move.
     public interface IMoveProcessor
     {
+        List<Move> GetLegalMoves(Game game, Player player); // single source of truth for the rules
         bool IsMoveLegal(Game game, Move move);
         void ApplyMove(Game game, Move move);
         bool HasLegalMoves(Game game, Player player);
+        bool AllowPass {get;} // Does this game family have a Pass move (Reversi family)
         
     }
 
     // **** GOMOKU STANDARD ****
     public class GomokuMoveProcessor : IMoveProcessor
     {
+        public bool AllowPass => false;
+        public virtual List<Move> GetLegalMoves(Game game, Player player)
+        {
+            List<Move> moves = new List<Move>();
+            Board board = game.Board;
+
+            for (int row = 1; row <= board.Rows; row++)
+            {
+                for (int col = 1; col <= board.Cols; col++)
+                {
+                    if (board.GetCell(row, col) == null)
+                    {
+                        moves.Add(new GomokuMove(row, col, 'O'));
+                    }
+                }
+            }
+
+            return moves;
+        }
         public bool IsMoveLegal(Game game, Move move)
         {
-            if (move is not GomokuMove gomokuMove)
-            return false;
+            // this processor only understands Gomoku moves
+            GomokuMove? gomokuMove = move as GomokuMove; 
+            if (gomokuMove == null) return false;
 
+            // These lines of code could be re-implemented by the codes below them
+            // if (move is not GomokuMove gomokuMove)
+            //     return false;
             // Only ordinary stones are permitted
-            if (gomokuMove.StoneType != 'O')
-            return false;
-
+            // if (gomokuMove.StoneType != 'O')
             // Check board boundaries
-            if (!game.Board.IsWithinBounds(gomokuMove.Row, gomokuMove.Col))
-                return false;
+            // if (!game.Board.IsWithinBounds(gomokuMove.Row, gomokuMove.Col))
+            //     return false;
 
-            // Cell must be empty
-            return game.Board.GetCell(gomokuMove.Row, gomokuMove.Col) == null;
+            // // Cell must be empty
+            // return game.Board.GetCell(gomokuMove.Row, gomokuMove.Col) == null;
+
+            // The move is legal if it appears in the lists of legal moves
+            foreach (Move legal in GetLegalMoves(game, game.CurrentPlayer))
+            {
+                GomokuMove legalMove = (GomokuMove)legal; // GetLegalMoves only generates GomokuMoves
+                if (legalMove.Row == gomokuMove.Row && legalMove.Col == gomokuMove.Col && legalMove.StoneType == gomokuMove.StoneType)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public void ApplyMove(Game game, Move move)
         {
-            GomokuMove gomokuMove = (GomokuMove)move; // we are assuming Move supplied is correct
+            GomokuMove gomokuMove = (GomokuMove)move; // Game has already checked IsMoveLegal
 
             // Place the current player's ordinary stone
             game.Board.SetCell(
@@ -45,53 +81,98 @@ namespace GomokuReversiApp
     
         public bool HasLegalMoves(Game game, Player player)
         {
+            return GetLegalMoves(game, player).Count > 0;
+            // Board board = game.Board;
+
+            // for (int row = 1; row <= board.Rows; row++)
+            // {
+            //     for (int col = 1; col <= board.Cols; col++)
+            //     {
+            //         if (board.GetCell(row, col) == null)
+            //             return true;
+            //     }
+            // }
+
+            // return false;
+        }
+    }
+    // **** GOMOKU PLUS ****
+    public class GomokuPlusMoveProcessor : IMoveProcessor
+    {
+        public bool AllowPass => false;
+        public List<Move> GetLegalMoves(Game game, Player player)
+        {
+            List<Move> moves = new List<Move>();
             Board board = game.Board;
 
             for (int row = 1; row <= board.Rows; row++)
             {
                 for (int col = 1; col <= board.Cols; col++)
                 {
-                    if (board.GetCell(row, col) == null)
-                        return true;
+                    Piece? piece = board.GetCell(row, col);
+
+                    if (piece == null)
+                    {
+                        moves.Add(new GomokuMove(row, col, 'O'));
+
+                        if (player.HasStoneAvailable('H'))
+                        {
+                            moves.Add(new GomokuMove(row, col, 'H'));
+                        }
+                    }
+                    else if (player.HasStoneAvailable('E') && piece is OrdinaryStone && piece.Owner != player.Number)
+                    {
+                        moves.Add(new GomokuMove(row, col, 'E'));
+                    }
                 }
             }
 
-            return false;
+            return moves;
         }
-    }
-    // **** GOMOKU PLUS ****
-    public class GomokuPlusMoveProcessor : IMoveProcessor
-    {
         public bool IsMoveLegal(Game game, Move move)
         {
-            if (move is not GomokuMove gomokuMove)
-                return false;
 
-            if (!game.Board.IsWithinBounds(gomokuMove.Row, gomokuMove.Col))
-                return false;
+            // this processor only understands Gomoku moves
+            GomokuMove? gomokuMove = move as GomokuMove; 
+            if (gomokuMove == null) return false;
 
-            Piece? target = game.Board.GetCell(gomokuMove.Row, gomokuMove.Col);
-
-            Player player = game.CurrentPlayer;
-
-            switch (gomokuMove.StoneType)
+            foreach (Move legal in GetLegalMoves(game, game.CurrentPlayer))
             {
-                case 'O': // Ordinary stone
-                    return target == null;
-
-                case 'H': // Heavy stone
-                    return target == null &&
-                        player.Inventory.TryGetValue('H', out int? heavyCount) && heavyCount.GetValueOrDefault() > 0;
-
-                case 'E': // Eraser
-                    return target is OrdinaryStone &&
-                        target.Owner != player.Number &&
-                        player.Inventory.TryGetValue('E', out int? eraserCount) &&
-                        eraserCount.GetValueOrDefault() > 0;
-
-                default:
-                    return false;
+                GomokuMove legalMove = (GomokuMove)legal; // GetLegalMoves only generates GomokuMoves
+                if (legalMove.Row == gomokuMove.Row && legalMove.Col == gomokuMove.Col && legalMove.StoneType == gomokuMove.StoneType)
+                {
+                    return true;
+                }
             }
+            return false;
+            // if (move is not GomokuMove gomokuMove)
+            //     return false;
+
+            // if (!game.Board.IsWithinBounds(gomokuMove.Row, gomokuMove.Col))
+            //     return false;
+
+            // Piece? target = game.Board.GetCell(gomokuMove.Row, gomokuMove.Col);
+
+            // Player player = game.CurrentPlayer;
+
+            // switch (gomokuMove.StoneType)
+            // {
+            //     case 'O': // Ordinary stone
+            //         return target == null;
+
+            //     case 'H': // Heavy stone
+            //         return target == null &&
+            //             player.Inventory.TryGetValue('H', out int? heavyCount) && heavyCount.GetValueOrDefault() > 0;
+
+            //     case 'E': // Eraser
+            //         return target is OrdinaryStone &&
+            //             target.Owner != player.Number &&
+            //             player.Inventory.TryGetValue('E', out int? eraserCount) &&
+            //             eraserCount.GetValueOrDefault() > 0;
+
+            //     default:
+            //         return false;
+            // }
         }
         public void ApplyMove(Game game, Move move)
         {
@@ -115,21 +196,19 @@ namespace GomokuReversiApp
                         gomokuMove.Col,
                         new HeavyStone(player.Number)
                     );
-
-                    player.Inventory['H'] =
-                        player.Inventory['H']!.Value - 1;
+                    
+                    player.UseStone('H');
+                    // player.Inventory['H'] =
+                    //     player.Inventory['H']!.Value - 1;
                     break;
 
                 case 'E':
                     // Remove the opponent's ordinary stone
-                    game.Board.SetCell(
-                        gomokuMove.Row,
-                        gomokuMove.Col,
-                        null
-                    );
+                    game.Board.ClearCell(gomokuMove.Row, gomokuMove.Col);
 
-                    player.Inventory['E'] =
-                        player.Inventory['E']!.Value - 1;
+                    player.UseStone('E');
+                    // player.Inventory['E'] =
+                    //     player.Inventory['E']!.Value - 1;
                     break;
 
                 default:
@@ -139,38 +218,40 @@ namespace GomokuReversiApp
 
         public bool HasLegalMoves(Game game, Player player)
         {
-            Board board = game.Board;
+            return GetLegalMoves(game, player).Count > 0;
+            // Board board = game.Board;
 
-            bool hasEraser =
-                player.Inventory.TryGetValue('E', out int? eraserCount) &&
-                (eraserCount == null || eraserCount > 0);
+            // bool hasEraser =
+            //     player.Inventory.TryGetValue('E', out int? eraserCount) &&
+            //     (eraserCount == null || eraserCount > 0);
 
-            for (int row = 1; row <= board.Rows; row++)
-            {
-                for (int col = 1; col <= board.Cols; col++)
-                {
-                    Piece? piece = board.GetCell(row, col);
+            // for (int row = 1; row <= board.Rows; row++)
+            // {
+            //     for (int col = 1; col <= board.Cols; col++)
+            //     {
+            //         Piece? piece = board.GetCell(row, col);
 
-                    // Ordinary stones can be placed on empty cells
-                    if (piece == null)
-                        return true;
+            //         // Ordinary stones can be placed on empty cells
+            //         if (piece == null)
+            //             return true;
 
-                    // Erasers can remove opponent's ordinary stones
-                    if (hasEraser &&
-                        piece is OrdinaryStone &&
-                        piece.Owner != player.Number)
-                    {
-                        return true;
-                    }
-                }
-            }
+            //         // Erasers can remove opponent's ordinary stones
+            //         if (hasEraser &&
+            //             piece is OrdinaryStone &&
+            //             piece.Owner != player.Number)
+            //         {
+            //             return true;
+            //         }
+            //     }
+            // }
 
-            return false;
+            // return false;
         }
     }
     // **** REVERSI ****
     public class ReversiMoveProcessor : IMoveProcessor
     {
+        public bool AllowPass => true;
         // dr = delta row, dc = delta column
         private static readonly (int dr, int dc)[] Directions =
         {
@@ -178,22 +259,52 @@ namespace GomokuReversiApp
             ( 0, -1),          ( 0, 1),
             ( 1, -1), ( 1, 0), ( 1, 1)
         };
+        public List<Move> GetLegalMoves(Game game, Player player)
+        {
+            List<Move> moves = new List<Move>();
+            Board board = game.Board;
+            for (int row = 1; row <= board.Rows; row++)
+            {
+                for (int col = 1; col <= board.Cols; col++)
+                {
+                    if (board.GetCell(row, col) != null) continue;
 
+                    ReversiMove move = new ReversiMove(row, col);
+
+                    if (GetCapturedPositions(game, move, player).Count > 0) moves.Add(move);
+                }
+            }
+
+            return moves;
+        }   
         public bool IsMoveLegal(Game game, Move move)
         {
-            if (move is not ReversiMove reversiMove)
-                return false;
+            // if (move is not ReversiMove reversiMove)
+            //     return false;
 
-            if (!game.Board.IsWithinBounds(reversiMove.Row, reversiMove.Col))
-                return false;
+            // This processor only understands Reversi moves
+            ReversiMove? reversiMove = move as ReversiMove;
+            if (reversiMove == null) return false;
 
-            if (game.Board.GetCell(reversiMove.Row, reversiMove.Col) != null)
-                return false;
+            // The move is legal if it appears in the list of legal moves
+            foreach (Move legal in GetLegalMoves(game, game.CurrentPlayer))
+            {
+                ReversiMove legalMove = (ReversiMove)legal;
 
-            // Must capture at least one opponent disc
-            return GetCapturedPositions(
-                game, reversiMove, game.CurrentPlayer
-            ).Count > 0;
+                if (legalMove.Row == reversiMove.Row && legalMove.Col == reversiMove.Col) return true;
+            }
+
+            return false;
+            // if (!game.Board.IsWithinBounds(reversiMove.Row, reversiMove.Col))
+            //     return false;
+
+            // if (game.Board.GetCell(reversiMove.Row, reversiMove.Col) != null)
+            //     return false;
+
+            // // Must capture at least one opponent disc
+            // return GetCapturedPositions(
+            //     game, reversiMove, game.CurrentPlayer
+            // ).Count > 0;
         }
 
         public void ApplyMove(Game game, Move move)
@@ -227,26 +338,27 @@ namespace GomokuReversiApp
 
         // Check whether a specified player has any legal moves
         public bool HasLegalMoves(Game game, Player player)
-        {
-            Board board = game.Board;
+        {   
+            return GetLegalMoves(game, player).Count > 0;
+            // Board board = game.Board;
 
-            for (int row = 1; row <= board.Rows; row++)
-            {
-                for (int col = 1; col <= board.Cols; col++)
-                {
-                    // A disc can only be placed on an empty cell
-                    if (board.GetCell(row, col) != null)
-                        continue;
+            // for (int row = 1; row <= board.Rows; row++)
+            // {
+            //     for (int col = 1; col <= board.Cols; col++)
+            //     {
+            //         // A disc can only be placed on an empty cell
+            //         if (board.GetCell(row, col) != null)
+            //             continue;
 
-                    ReversiMove move = new ReversiMove(row, col);
+            //         ReversiMove move = new ReversiMove(row, col);
 
-                    // A legal move must capture at least one opponent disc
-                    if (GetCapturedPositions(game, move, player).Count > 0)
-                        return true;
-                }
-            }
+            //         // A legal move must capture at least one opponent disc
+            //         if (GetCapturedPositions(game, move, player).Count > 0)
+            //             return true;
+            //     }
+            // }
 
-            return false;
+            // return false;
         }
 
         // Find all opponent discs that would be captured

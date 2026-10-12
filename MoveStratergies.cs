@@ -3,87 +3,87 @@ namespace GomokuReversiApp
     public interface IMoveStrategy
     {
         Move ChooseMove(Game game);
-        List<Move> GetLegalMoves(Game game);
+        // List<Move> GetLegalMoves(Game game);
     }
 
-    public abstract class MoveStrategyBase : IMoveStrategy
-    {
-        public abstract Move ChooseMove(Game game);
+    // public abstract class MoveStrategyBase : IMoveStrategy
+    // {
+    //     public abstract Move ChooseMove(Game game);
 
-        public List<Move> GetLegalMoves(Game game)
-        {
-            List<Move> moves = new List<Move>();
+    //     public List<Move> GetLegalMoves(Game game)
+    //     {
+    //         List<Move> moves = new List<Move>();
 
-            IMoveProcessor processor = game.MoveProcessor;
+    //         IMoveProcessor processor = game.MoveProcessor;
 
-            for (int row = 1; row <= game.Board.Rows; row++)
-            {
-                for (int col = 1; col <= game.Board.Cols; col++)
-                {
-                    if (processor is GomokuPlusMoveProcessor)
-                    {
-                        char[] stoneTypes = { 'O', 'H', 'E' };
+    //         for (int row = 1; row <= game.Board.Rows; row++)
+    //         {
+    //             for (int col = 1; col <= game.Board.Cols; col++)
+    //             {
+    //                 if (processor is GomokuPlusMoveProcessor)
+    //                 {
+    //                     char[] stoneTypes = { 'O', 'H', 'E' };
 
-                        foreach (char stoneType in stoneTypes)
-                        {
-                            GomokuMove move =
-                                new GomokuMove(row, col, stoneType);
+    //                     foreach (char stoneType in stoneTypes)
+    //                     {
+    //                         GomokuMove move =
+    //                             new GomokuMove(row, col, stoneType);
 
-                            if (processor.IsMoveLegal(game, move))
-                                moves.Add(move);
-                        }
-                    }
-                    else if (processor is GomokuMoveProcessor)
-                    {
-                        GomokuMove move =
-                            new GomokuMove(row, col, 'O');
+    //                         if (processor.IsMoveLegal(game, move))
+    //                             moves.Add(move);
+    //                     }
+    //                 }
+    //                 else if (processor is GomokuMoveProcessor)
+    //                 {
+    //                     GomokuMove move =
+    //                         new GomokuMove(row, col, 'O');
 
-                        if (processor.IsMoveLegal(game, move))
-                            moves.Add(move);
-                    }
-                    else if (processor is ReversiMoveProcessor)
-                    {
-                        ReversiMove move =
-                            new ReversiMove(row, col);
+    //                     if (processor.IsMoveLegal(game, move))
+    //                         moves.Add(move);
+    //                 }
+    //                 else if (processor is ReversiMoveProcessor)
+    //                 {
+    //                     ReversiMove move =
+    //                         new ReversiMove(row, col);
 
-                        if (processor.IsMoveLegal(game, move))
-                            moves.Add(move);
-                    }
-                    else
-                    {
-                        throw new NotSupportedException(
-                            "Unknown move processor.");
-                    }
-                }
-            }
+    //                     if (processor.IsMoveLegal(game, move))
+    //                         moves.Add(move);
+    //                 }
+    //                 else
+    //                 {
+    //                     throw new NotSupportedException(
+    //                         "Unknown move processor.");
+    //                 }
+    //             }
+    //         }
 
-            return moves;
-        }
-    }
+    //         return moves;
+    //     }
+    // }
 
-    public class RandomMoveStrategy : MoveStrategyBase
+    public class RandomMoveStrategy : IMoveStrategy
     {
         private readonly Random random = new Random();
 
-        public override Move ChooseMove(Game game)
+        public Move ChooseMove(Game game)
         {
-            List<Move> moves = GetLegalMoves(game);
+            List<Move> moves = game.MoveProcessor.GetLegalMoves(game, game.CurrentPlayer);
 
             if (moves.Count == 0)
             {
-                // Passing only applies to Reversi
-                if (game.MoveProcessor is ReversiMoveProcessor)
-                    return new PassMove();
+                
+                // if (game.MoveProcessor is ReversiMoveProcessor) // violation of Open-Closed rule
+                return new PassMove(); // Passing only applies to Reversi
 
-                throw new InvalidOperationException(
-                    "No legal Gomoku moves available.");
+                // throw new InvalidOperationException(
+                //     "No legal Gomoku moves available.");
             }
 
             return moves[random.Next(moves.Count)];
         }
     }
 
-    public class GomokuSmartStrategy : MoveStrategyBase
+    public class GomokuSmartStrategy : IMoveStrategy
     {
         private readonly int winLength;
         private readonly Random random = new Random();
@@ -93,9 +93,9 @@ namespace GomokuReversiApp
             this.winLength = winLength;
         }
 
-        public override Move ChooseMove(Game game)
+        public Move ChooseMove(Game game)
         {
-            List<Move> moves = GetLegalMoves(game);
+            List<Move> moves = game.MoveProcessor.GetLegalMoves(game, game.CurrentPlayer);
 
             if (moves.Count == 0)
                 throw new InvalidOperationException(
@@ -109,7 +109,7 @@ namespace GomokuReversiApp
             foreach (Move move in moves)
             {
                 if (move is GomokuMove gomokuMove &&
-                    gomokuMove.StoneType == 'O' &&
+                    gomokuMove.StoneType != 'E' &&
                     CountLine(board, gomokuMove.Row, gomokuMove.Col,
                             player) >= winLength)
                 {
@@ -180,11 +180,11 @@ namespace GomokuReversiApp
         }
     }
     
-    public abstract class ReversiScoringStrategy : MoveStrategyBase
+    public abstract class ReversiScoringStrategy : IMoveStrategy
     {
-        public override Move ChooseMove(Game game)
+        public Move ChooseMove(Game game)
         {
-            List<Move> moves = GetLegalMoves(game);
+            List<Move> moves = game.MoveProcessor.GetLegalMoves(game, game.CurrentPlayer);
 
             if (moves.Count == 0)
                 return new PassMove();

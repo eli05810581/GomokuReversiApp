@@ -3,7 +3,7 @@ namespace GomokuReversiApp
 {
     public class Board
     {
-        private Piece[,] cells;
+        private Piece?[,] cells;
 
         public int Rows { get; }
         public int Cols { get; }
@@ -29,11 +29,11 @@ namespace GomokuReversiApp
 
         public int GetOwner(int row, int col)
         {
-            Piece piece = cells[row, col];
+            Piece? piece = cells[row, col];
             return piece == null ? 0 : piece.Owner;
         }
 
-        public Piece GetCell(int row, int col) // Can return null
+        public Piece? GetCell(int row, int col) // Can return null
         {
             return cells[row, col];
         }
