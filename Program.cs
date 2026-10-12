@@ -430,7 +430,7 @@
                 TurnCount = int.Parse(
                     fields["TurnCount"]),
 
-                GameResult = Enum.Parse<GameResult>(
+                Result = Enum.Parse<GameResult>(
                     fields["GameResult"]),
 
                 BoardRows = fields["Board"].Split('/').ToList(),

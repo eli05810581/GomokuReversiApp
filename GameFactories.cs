@@ -21,6 +21,8 @@ namespace GomokuReversiApp
 
         IVisibilityModel CreateVisibilityModel(GameVariant gameVariant);
 
+        IHelpProvider CreateHelpProvider(GameVariant gameVariant);
+
         
 
     }
@@ -53,14 +55,18 @@ namespace GomokuReversiApp
             
             ICommandSource commandSource = CreateCommandSource(config);
 
+            IHelpProvider helpProvider = CreateHelpProvider(config.Variant);
+
             // Assemble and return the game
             return new Game(
+                config,
                 board,
                 players,
                 moveParser,
                 moveProcessor,
                 gameOverChecker,
                 visibilityModel,
+                helpProvider,
                 commandSource
             );
         }
@@ -141,7 +147,7 @@ namespace GomokuReversiApp
                         );
                     }
 
-                    MoveStrategyBase strategy;
+                    IMoveStrategy strategy;
 
                     switch (difficulty.Value)
                     {
@@ -262,8 +268,7 @@ namespace GomokuReversiApp
             }
         }
 
-        public IVisibilityModel CreateVisibilityModel(GameVariant variant
-        )
+        public IVisibilityModel CreateVisibilityModel(GameVariant variant)
         {
             switch (variant)
             {
@@ -304,6 +309,11 @@ namespace GomokuReversiApp
                     throw new ArgumentException("Invalid game mode.");
             }
         }
+    
+        public IHelpProvider CreateHelpProvider(GameVariant variant)
+        {
+            return new GomokuStandardHelpProvider();
+        }
     }
 
 
@@ -334,13 +344,17 @@ namespace GomokuReversiApp
             ICommandSource commandSource =
                 CreateCommandSource(config);
 
+            IHelpProvider helpProvider = CreateHelpProvider(config.Variant);
+
             return new Game(
+                config,
                 board,
                 players,
                 moveParser,
                 moveProcessor,
                 gameOverChecker,
                 visibilityModel,
+                helpProvider,
                 commandSource
             );
         }
@@ -430,7 +444,7 @@ namespace GomokuReversiApp
                         );
                     }
 
-                    MoveStrategyBase strategy;
+                    IMoveStrategy strategy;
 
                     switch (difficulty.Value)
                     {
@@ -471,7 +485,7 @@ namespace GomokuReversiApp
         }
 
         // Select the appropriate Smart AI strategy
-        private MoveStrategyBase CreateSmartStrategy(
+        private IMoveStrategy CreateSmartStrategy(
             GameVariant variant
         )
         {
@@ -535,16 +549,11 @@ namespace GomokuReversiApp
             GameVariant variant
         )
         {
-            ValidateVariant(variant);
-
             return new FullVisibility();
         }
 
-        public ICommandSource CreateCommandSource(
-            LaunchConfiguration config
-        )
+        public ICommandSource CreateCommandSource(LaunchConfiguration config)
         {
-            ValidateVariant(config.Variant);
             // Create the appropriate move parser for the game variant
             IMoveParser moveParser = CreateMoveParser(config.Variant);
 
@@ -564,6 +573,11 @@ namespace GomokuReversiApp
                     );
             }
         }
+        public IHelpProvider CreateHelpProvider(GameVariant variant)
+        {
+            return new GomokuStandardHelpProvider();
+        }
+        
 
         // Check that the variant belongs to Reversi
         private void ValidateVariant(GameVariant variant)
@@ -581,6 +595,8 @@ namespace GomokuReversiApp
                     );
             }
         }
+
+        
     }
 
 }

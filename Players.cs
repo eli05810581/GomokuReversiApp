@@ -65,13 +65,14 @@ namespace GomokuReversiApp
     // AI moves are generated using a move strategy
     public class AIPlayer : Player
     {
-        private readonly MoveStrategyBase moveStrategy;
+        // private readonly MoveStrategyBase moveStrategy;
+        private readonly IMoveStrategy moveStrategy;
 
         public AIPlayer(
             string name,
             int number,
             Dictionary<char, int?> inventory,
-            MoveStrategyBase moveStrategy)
+            IMoveStrategy moveStrategy) // Change from MoveStrategyBase
             : base(name, number, inventory)
         {
             this.moveStrategy = moveStrategy;

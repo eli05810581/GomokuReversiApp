@@ -8,7 +8,7 @@ namespace GomokuReversiApp
 
         public int TurnCount { get; set; }
 
-        public GameResult GameResult { get; set; }
+        public GameResult Result { get; set; }
 
         // Each string represents one row of the board.
         public List<string> BoardRows { get; set; } = new List<string>();
