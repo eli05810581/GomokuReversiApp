@@ -56,21 +56,59 @@ namespace GomokuReversiApp
                     return new SaveCommand(
                         string.Join(" ", parts, 1, parts.Length - 1));
 
-                default:
-                    // Move parsing will be connected when
-                    // IMoveParser is implemented by the team.
-                    return new InvalidCommand();
+                default: // if it's not an application command it must be a move, or an invalid command
+                    try
+                    {
+                        Move move = moveParser.ParseMove(input);
+
+                        if (move == null)
+                        {
+                            return new InvalidCommand(
+                                new FormatException("Move parser returned null.")
+                            );
+                        }
+
+                        return new MoveCommand(move);
+                    }
+                    catch (Exception ex) when (
+                        ex is FormatException ||
+                        ex is ArgumentException
+                    )
+                    {
+                        return new InvalidCommand(ex);
+                    }
             }
         }
     }
 
+    
     // Handles invalid or unsupported input.
     public class InvalidCommand : ICommand
     {
+        private readonly Exception? exception;
+
+        public InvalidCommand(Exception? exception = null)
+        {
+            this.exception = exception;
+        }
+
         public void Execute(Game game)
         {
             Console.WriteLine(
-                "Invalid command. Type 'help' for available commands.");
+                "Invalid command. Type 'help' for available commands."
+            );
+
+            if (exception != null)
+            {
+                Console.WriteLine(
+                    $"Error Type: {exception.GetType().Name}"
+                );
+
+                Console.WriteLine(
+                    $"Details: {exception.Message}"
+                );
+            }
         }
     }
+
 }
