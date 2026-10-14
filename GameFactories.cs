@@ -87,11 +87,7 @@ namespace GomokuReversiApp
             }
         }
 
-        public List<Player> CreatePlayers(
-            GameVariant variant,
-            GameMode gameMode,
-            AIDifficulty? difficulty
-        )
+        public List<Player> CreatePlayers(GameVariant variant,GameMode gameMode,AIDifficulty? difficulty)
         {
             List<Player> players = new List<Player>();
 
@@ -485,9 +481,7 @@ namespace GomokuReversiApp
         }
 
         // Select the appropriate Smart AI strategy
-        private IMoveStrategy CreateSmartStrategy(
-            GameVariant variant
-        )
+        private IMoveStrategy CreateSmartStrategy(GameVariant variant)
         {
             switch (variant)
             {
@@ -507,18 +501,14 @@ namespace GomokuReversiApp
             }
         }
 
-        public IMoveParser CreateMoveParser(
-            GameVariant variant
-        )
+        public IMoveParser CreateMoveParser(GameVariant variant)
         {
             ValidateVariant(variant);
 
             return new ReversiMoveParser();
         }
 
-        public IMoveProcessor CreateMoveProcessor(
-            GameVariant variant
-        )
+        public IMoveProcessor CreateMoveProcessor(GameVariant variant)
         {
             ValidateVariant(variant);
 
@@ -545,9 +535,7 @@ namespace GomokuReversiApp
             }
         }
 
-        public IVisibilityModel CreateVisibilityModel(
-            GameVariant variant
-        )
+        public IVisibilityModel CreateVisibilityModel(GameVariant variant)
         {
             return new FullVisibility();
         }
@@ -575,7 +563,22 @@ namespace GomokuReversiApp
         }
         public IHelpProvider CreateHelpProvider(GameVariant variant)
         {
-            return new GomokuStandardHelpProvider();
+            switch (variant)
+            {
+                case GameVariant.ReversiStandard:
+                    return new ReversiStandardHelpProvider();
+
+                case GameVariant.ReversiAnti:
+                    return new ReversiAntiHelpProvider();
+
+                case GameVariant.ReversiCorner:
+                    return new ReversiCornerHelpProvider();
+
+                default:
+                    throw new ArgumentException(
+                        "Invalid Reversi variant."
+                    );
+            }
         }
         
 
