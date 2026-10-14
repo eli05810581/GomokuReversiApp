@@ -13,6 +13,14 @@ namespace GomokuReversiApp
             Col = col;
             StoneType = stoneType;
         }
+        public override bool Equals(object? obj)
+        {
+            return obj is GomokuMove other && Row == other.Row && Col == other.Col && StoneType == other.StoneType;
+        }
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Row, Col, StoneType);
+        }
     }
     public class ReversiMove: Move
     {
@@ -22,6 +30,15 @@ namespace GomokuReversiApp
         {
             Row = row;
             Col = col;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is ReversiMove other && Row == other.Row && Col == other.Col;
+        }
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Row, Col);
         }
     }
 
