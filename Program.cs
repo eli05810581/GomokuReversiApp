@@ -177,16 +177,7 @@
  
         private static Game CreateGame(LaunchConfiguration config)
         {
-            IGameFactory factory = config.GameType switch
-            {
-                GameType.Gomoku => new GomokuGameFactory(),
-
-                GameType.Reversi => new ReversiGameFactory(),
-
-                _ => throw new ArgumentException(
-                    "Invalid game type."
-                )
-            };
+            IGameFactory factory = GameFactorySelector.Create(config.Variant);
 
             return factory.CreateGame(config);
         }       
