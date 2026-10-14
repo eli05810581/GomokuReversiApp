@@ -6,61 +6,6 @@ namespace GomokuReversiApp
         // List<Move> GetLegalMoves(Game game);
     }
 
-    // public abstract class MoveStrategyBase : IMoveStrategy
-    // {
-    //     public abstract Move ChooseMove(Game game);
-
-    //     public List<Move> GetLegalMoves(Game game)
-    //     {
-    //         List<Move> moves = new List<Move>();
-
-    //         IMoveProcessor processor = game.MoveProcessor;
-
-    //         for (int row = 1; row <= game.Board.Rows; row++)
-    //         {
-    //             for (int col = 1; col <= game.Board.Cols; col++)
-    //             {
-    //                 if (processor is GomokuPlusMoveProcessor)
-    //                 {
-    //                     char[] stoneTypes = { 'O', 'H', 'E' };
-
-    //                     foreach (char stoneType in stoneTypes)
-    //                     {
-    //                         GomokuMove move =
-    //                             new GomokuMove(row, col, stoneType);
-
-    //                         if (processor.IsMoveLegal(game, move))
-    //                             moves.Add(move);
-    //                     }
-    //                 }
-    //                 else if (processor is GomokuMoveProcessor)
-    //                 {
-    //                     GomokuMove move =
-    //                         new GomokuMove(row, col, 'O');
-
-    //                     if (processor.IsMoveLegal(game, move))
-    //                         moves.Add(move);
-    //                 }
-    //                 else if (processor is ReversiMoveProcessor)
-    //                 {
-    //                     ReversiMove move =
-    //                         new ReversiMove(row, col);
-
-    //                     if (processor.IsMoveLegal(game, move))
-    //                         moves.Add(move);
-    //                 }
-    //                 else
-    //                 {
-    //                     throw new NotSupportedException(
-    //                         "Unknown move processor.");
-    //                 }
-    //             }
-    //         }
-
-    //         return moves;
-    //     }
-    // }
-
     public class RandomMoveStrategy : IMoveStrategy
     {
         private readonly Random random = new Random();

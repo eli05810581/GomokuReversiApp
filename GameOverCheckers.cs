@@ -6,7 +6,7 @@ namespace GomokuReversiApp
         GameResult Check(Game game);
     }
 
-    public class AlignmentChecker : IGameOverChecker
+    public class AlignmentChecker : IGameOverChecker // For Gomoku Family
     {
         private readonly int winLength;
 
@@ -106,7 +106,7 @@ namespace GomokuReversiApp
         }
     }
 
-    public abstract class CountBasedChecker : IGameOverChecker
+    public abstract class CountBasedChecker : IGameOverChecker // For Reversi family. Template method (Decide winner method is varying)
     {
         public virtual GameResult Check(Game game)
         {
