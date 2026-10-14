@@ -1,0 +1,44 @@
+@startuml
+title 05 - Save and Load Game State
+autonumber
+actor Player
+participant Program
+participant Game
+participant "SaveCommand" as SaveCommand
+participant "SaveFileManager" as Files
+participant "SavedGameData" as Data
+participant "IGameFactory" as Factory
+participant Board
+
+alt SAVE filename during game
+ Player -> SaveCommand : SAVE filename (via InputParser)
+ SaveCommand -> Game : SaveGame(filename)
+ Game -> Game : CaptureState()
+ Game -> Board : CaptureRows()
+ Board --> Game : board rows
+ Game -> Data ** : new SavedGameData(config, state, histories)
+ Game -> Files : Save(filename, data)
+ Files -> Files : Write configuration, state, undo and redo sections
+ Files --> Game : saved / error
+ Game --> Player : Save result
+else LOAD from menu or active game
+ opt LOAD command inside game
+  Player -> Game : LOAD (via LoadCommand)
+  Game -> Game : RequestLoad()
+  Game --> Program : PlayGame() returns true
+ end
+ Program -> Player : Request file name
+ Player --> Program : filename
+ Program -> Files : Load(filename)
+ Files -> Files : ReadAllLines() / ParseSavedGame()
+ Files --> Program : SavedGameData
+ Program -> Program : CreateGame(data.Configuration)
+ Program -> Factory : CreateGame(config)
+ Factory --> Program : new Game
+ Program -> Game : RestoreState(data.CurrentState)
+ Game -> Board : RestoreRows(state.BoardRows)
+ Game -> Game : Restore current player, turn, result, inventories
+ Program -> Game : RestoreHistory(undo, redo)
+ Program -> Game : PlayGame()
+end
+@enduml

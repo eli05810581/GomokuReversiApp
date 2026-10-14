@@ -1,0 +1,46 @@
+@startuml
+title 04 - HELP, UNDO, REDO, QUIT and LOAD Request
+autonumber
+actor Player
+participant Game
+participant "InteractiveCommandSource" as Source
+participant InputParser
+participant "ICommand" as Command
+participant "IHelpProvider" as Help
+
+Player -> Source : Enter command
+Source -> InputParser : Parse(input)
+alt HELP
+ InputParser --> Source : HelpCommand
+ Source --> Game : HelpCommand
+ Game -> Command : Execute(game)
+ Command -> Game : DisplayHelp()
+ Game -> Help : GetHelp()
+ Help --> Game : variant-specific help text
+ Game -> Player : Print help
+else UNDO
+ InputParser --> Source : UndoCommand
+ Source --> Game : UndoCommand
+ Game -> Command : Execute(game)
+ Command -> Game : UndoTurn()
+ Game -> Game : RestoreState(previous snapshot) if available
+else REDO
+ InputParser --> Source : RedoCommand
+ Source --> Game : RedoCommand
+ Game -> Command : Execute(game)
+ Command -> Game : RedoTurn()
+ Game -> Game : RestoreState(next snapshot) if available
+else LOAD
+ InputParser --> Source : LoadCommand
+ Source --> Game : LoadCommand
+ Game -> Command : Execute(game)
+ Command -> Game : RequestLoad()
+ note right of Game : Sets loadRequested = true\nand ends current loop.\nProgram performs actual load.
+else QUIT or EXIT
+ InputParser --> Source : QuitCommand
+ Source --> Game : QuitCommand
+ Game -> Command : Execute(game)
+ Command -> Game : QuitGame()
+ note right of Game : Ends current game loop
+end
+@enduml

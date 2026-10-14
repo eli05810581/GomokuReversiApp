@@ -1,0 +1,59 @@
+@startuml
+title 03 - AI Strategy and Reversi PASS
+autonumber
+actor Player
+participant Game
+participant "InteractiveCommandSource" as Source
+participant AIPlayer
+participant "IMoveStrategy" as Strategy
+participant "IMoveProcessor" as Processor
+participant InputParser
+participant ReversiMoveParser
+participant MoveCommand
+participant "IGameOverChecker" as Checker
+
+alt AI player's turn
+ Game -> Source : GetNextCommand(game)
+ Source -> Game : MustPass()
+ Game -> Processor : HasLegalMoves(game, CurrentPlayer)
+ alt No legal moves and AllowPass
+  Source --> Game : MoveCommand(PassMove)
+ else Legal moves available
+  Source -> AIPlayer : GetMove(game)
+  AIPlayer -> Strategy : ChooseMove(game)
+  Strategy -> Processor : GetLegalMoves(game, CurrentPlayer)
+  Processor --> Strategy : legal moves
+  Strategy --> AIPlayer : selected Move
+  AIPlayer --> Source : Move
+  Source --> Game : MoveCommand(Move)
+ end
+else Human enters PASS
+ Game -> Source : GetNextCommand(game)
+ Player -> Source : PASS
+ Source -> InputParser : Parse("PASS")
+ InputParser -> ReversiMoveParser : ParseMove("PASS")
+ ReversiMoveParser --> InputParser : PassMove
+ InputParser --> Source : MoveCommand(PassMove)
+ Source --> Game : MoveCommand(PassMove)
+end
+Game -> MoveCommand : Execute(game)
+MoveCommand -> Game : PlayMove(move)
+alt move is PassMove
+ Game -> Game : PassTurn()
+ Game -> Game : MustPass()
+ Game -> Processor : HasLegalMoves(game, CurrentPlayer)
+ alt PASS allowed
+  Game -> Game : SaveHistory()
+  Game -> Game : EndTurn()
+  Game -> Checker : Check(game)
+  Game --> MoveCommand : true
+ else PASS not allowed
+  Game --> MoveCommand : false
+  MoveCommand -> Player : Invalid move. Please try again.
+ end
+else Normal AI move
+ Game -> Processor : IsMoveLegal(game, move)
+ Game -> Processor : ApplyMove(game, move) if valid
+ Game -> Checker : Check(game) if valid
+end
+@enduml

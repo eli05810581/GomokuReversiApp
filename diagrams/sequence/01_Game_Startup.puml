@@ -1,0 +1,36 @@
+@startuml
+title 01 - Game Startup and Factory Creation
+autonumber
+actor Player
+participant Program
+participant "CommandLineParser" as CL
+participant "IGameFactory\n(Gomoku/Reversi)" as Factory
+participant "Board / Players" as Parts
+participant "MoveParser / Processor\nChecker / Visibility / Help" as Rules
+participant "CommandSource" as Source
+participant Game
+
+alt Command-line arguments supplied
+ Program -> CL : Parse(args)
+ CL --> Program : LaunchConfiguration
+else Interactive menu
+ Player -> Program : Choose New Game
+ Program -> Program : ConfigureNewGame()
+end
+Program -> Program : CreateGame(config)
+alt Gomoku
+ Program -> Factory : GomokuGameFactory.CreateGame(config)
+else Reversi
+ Program -> Factory : ReversiGameFactory.CreateGame(config)
+end
+Factory -> Parts : CreateBoard() / CreatePlayers()
+Parts --> Factory : board, players
+Factory -> Rules : CreateMoveParser(), CreateMoveProcessor(),\nCreateGameOverChecker(), CreateVisibilityModel(),\nCreateHelpProvider()
+Rules --> Factory : variant-specific components
+Factory -> Source : CreateCommandSource(config)
+Source --> Factory : interactive or automated source
+Factory -> Game ** : new Game(config, components)
+Game --> Program : game
+Program -> Program : RunGameSession(game)
+Program -> Game : PlayGame()
+@enduml

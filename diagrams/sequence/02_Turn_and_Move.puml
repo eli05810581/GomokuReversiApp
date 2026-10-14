@@ -1,0 +1,56 @@
+@startuml
+title 02 - Human Move, Validation and End of Turn
+autonumber
+actor Player
+participant Game
+participant "IVisibilityModel" as Visibility
+participant "BoardRenderer" as Renderer
+participant "InteractiveCommandSource" as Source
+participant InputParser
+participant "IMoveParser" as Parser
+participant MoveCommand
+participant "IMoveProcessor" as Processor
+participant Board
+participant "IGameOverChecker" as Checker
+
+loop while running and game ongoing
+ Game -> Game : DisplayGame()
+ Game -> Visibility : RenderBoard(Board, CurrentPlayer)
+ Visibility -> Renderer : Render(visibleBoard)
+ Game -> Source : GetNextCommand(game)
+ Source -> Player : Prompt for command
+ Player --> Source : O5:3 / H5:3 / E5:3 / P3:4
+ Source -> InputParser : Parse(input)
+ InputParser -> Parser : ParseMove(input)
+ alt Valid syntax
+  Parser --> InputParser : GomokuMove / ReversiMove
+  InputParser --> Source : MoveCommand(move)
+  Source --> Game : MoveCommand
+  Game -> MoveCommand : Execute(game)
+  MoveCommand -> Game : PlayMove(move)
+  Game -> Processor : IsMoveLegal(game, move)
+  alt Legal move
+   Processor --> Game : true
+   Game -> Game : SaveHistory() / CaptureState()
+   Game -> Processor : ApplyMove(game, move)
+   Processor -> Board : SetCell(...) / update discs
+   Game -> Checker : Check(game)
+   Checker --> Game : GameResult
+   Game -> Game : EndTurn() / Check(game)
+   opt Game ongoing
+    Game -> Game : NextPlayer()
+   end
+   Game --> MoveCommand : true
+  else Illegal move
+   Processor --> Game : false
+   Game --> MoveCommand : false
+   MoveCommand -> Player : Invalid move. Please try again.
+  end
+ else Invalid syntax
+  Parser --> InputParser : FormatException
+  InputParser --> Source : InvalidCommand
+  Source --> Game : InvalidCommand
+  Game -> Player : Display invalid command and details
+ end
+end
+@enduml
