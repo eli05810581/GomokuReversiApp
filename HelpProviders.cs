@@ -1,4 +1,3 @@
-
 namespace GomokuReversiApp
 {
     public interface IHelpProvider
@@ -34,8 +33,8 @@ namespace GomokuReversiApp
                    "Get 5 stones in a row to win.\n" +
                    "\nStone types:\n" +
                    "O - Ordinary stone (unlimited)\n" +
-                   "H - Heavy stone (2 per player)\n" +
-                   "E - Eraser stone (2 per player)\n" +
+                   "H - Heavy stone (initially 2 per player)\n" +
+                   "E - Eraser stone (initially 2 per player)\n" +
                    "\nMove examples:\n" +
                    "O5:3 - Place an ordinary stone\n" +
                    "H5:3 - Place a heavy stone\n" +
