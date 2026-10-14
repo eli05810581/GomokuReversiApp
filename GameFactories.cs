@@ -312,7 +312,17 @@ namespace GomokuReversiApp
     
         public IHelpProvider CreateHelpProvider(GameVariant variant)
         {
-            return new GomokuStandardHelpProvider();
+            switch (variant)
+            {
+                case GameVariant.GomokuStandard:
+                    return new GomokuStandardHelpProvider();
+                case GameVariant.GomokuPlus:
+                    return new GomokuPlusHelpProvider();
+                case GameVariant.GomokuFog:
+                    return new GomokuFogHelpProvider();
+                default:
+                    throw new ArgumentException("Invalid Gomoku variant.");
+            }
         }
     }
 
@@ -575,7 +585,17 @@ namespace GomokuReversiApp
         }
         public IHelpProvider CreateHelpProvider(GameVariant variant)
         {
-            return new GomokuStandardHelpProvider();
+            switch (variant)
+            {
+                case GameVariant.ReversiStandard:
+                    return new ReversiStandardHelpProvider();
+                case GameVariant.ReversiAnti:
+                    return new ReversiAntiHelpProvider();
+                case GameVariant.ReversiCorner:
+                    return new ReversiCornerHelpProvider();
+                default:
+                    throw new ArgumentException("Invalid Reversi variant.");
+            }
         }
         
 
