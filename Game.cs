@@ -57,8 +57,6 @@ namespace GomokuReversiApp
             TurnCount = 0;
             Result = GameResult.OnGoing;
 
-            // gameHistory = new List<GameState>();
-            // redoHistory = new List<GameState>();
         }
 
         // important!
@@ -75,6 +73,7 @@ namespace GomokuReversiApp
             loadRequested = false;
             bool automated = Configuration.GameMode == GameMode.Automated;
 
+            // main game loop: display, get command, execute command until not isRunning or not OnGoing
             while (isRunning && Result == GameResult.OnGoing)
             {
 
@@ -91,7 +90,7 @@ namespace GomokuReversiApp
                 // Console.WriteLine($"Game Over: {gameResult}");
             }
 
-            return loadRequested;
+            return loadRequested; // this is a bool used to load during a game
         }
 
         // implements a single move; strategy pattern handles game-specific rules

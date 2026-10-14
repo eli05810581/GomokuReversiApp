@@ -4,98 +4,58 @@
         private static Game? currentGame;
         public static void Main(string[] args)
         {
-            LaunchConfiguration config;
-
             // Check whether command-line arguments were supplied
             if (args.Length > 0)
             {
                 CommandLineParser parser = new CommandLineParser();
-                config = parser.Parse(args); //???
 
-                // Select the factory
-                IGameFactory factory;
+                LaunchConfiguration config = parser.Parse(args);
 
-                if (config.GameType == GameType.Gomoku)
-                {
-                    factory = new GomokuGameFactory();
-                }
-                else if (config.GameType == GameType.Reversi)
-                {
-                    factory = new ReversiGameFactory();
-                }
-                else
-                {
-                    throw new ArgumentException("Invalid game type.");
-                }
-
-                // Create game
-                Game game = factory.CreateGame(config);
-
-                // Start game
-                bool loadRequested = game.PlayGame();
+                RunGameSession(CreateGame(config));
             }
             else
             {
                 MainMenu();
             }
-
-
-
         }
 
         private static void MainMenu()
         {
-            bool running = true;
-
-            while (running)
+            while (true)
             {
-                if (currentGame != null)
+                Console.WriteLine("\n=== GomokuReversi ===");
+                Console.WriteLine("1. New Game");
+                Console.WriteLine("2. Load Game");
+                Console.WriteLine("3. Exit");
+
+                int choice = ReadMenuChoice(1,3);
+
+                switch (choice)
                 {
-                    Game game = currentGame; // game is a local variable that remembers which game was running when PlayGame() was started
+                    case 1:
+                        LaunchConfiguration config = ConfigureNewGame();
+                        RunGameSession(CreateGame(config));
+                        break;
 
-                    game.PlayGame();
+                    case 2:
+                        Game? loadedGame = TryLoadGame();
 
-                    // If the game wasn't replaced by loading,
-                    // return to the main menu.
-                    if (currentGame == game)
-                    {
-                        currentGame = null;
-                    }
+                        if (loadedGame != null)
+                        {
+                            RunGameSession(loadedGame);
+                        }
+                        break;
+
+                    case 3:
+                        return;
+
+                    default: // possibly can't reach here cause of ReadMenuChoice
+                        Console.WriteLine("Invalid selection.");
+                        break;
                 }
-                else
-                {
-                    Console.WriteLine("=== GomokuReversi ===");
-                    Console.WriteLine("1. New Game");
-                    Console.WriteLine("2. Load Game");
-                    Console.WriteLine("3. Exit");
-
-                    string choice = Console.ReadLine() ?? "";
-
-                    switch (choice)
-                    {
-                        case "1":
-                            LaunchConfiguration config = ConfigureNewGame();
-                            StartNewGame(config);
-                            break;
-
-                        case "2":
-                            LoadGame();
-                            break;
-
-                        case "3":
-                            running = false;
-                            break;
-
-                        default:
-                            Console.WriteLine("Invalid selection.");
-                            break;
-                    } 
-                }
-
             }
-        }
-    
-        private static LaunchConfiguration ConfigureNewGame() // for configureing new interactive games
+        } 
+        private static LaunchConfiguration ConfigureNewGame() // for configuring new interactive games
         {
             LaunchConfiguration config = new LaunchConfiguration();
 
@@ -214,97 +174,78 @@
             }
         }
 
-        private static void StartNewGame(LaunchConfiguration config)
+ 
+        private static Game CreateGame(LaunchConfiguration config)
         {
-            IGameFactory factory;
-
-            if (config.GameType == GameType.Gomoku)
+            IGameFactory factory = config.GameType switch
             {
-                factory = new GomokuGameFactory();
-            }
-            else
-            {
-                factory = new ReversiGameFactory();
-            }
+                GameType.Gomoku => new GomokuGameFactory(),
 
-            Game game = factory.CreateGame(config);
+                GameType.Reversi => new ReversiGameFactory(),
 
-            game.PlayGame();
-        }   
+                _ => throw new ArgumentException(
+                    "Invalid game type."
+                )
+            };
 
-        public static void LoadGame()
+            return factory.CreateGame(config);
+        }       
+        private static void RunGameSession(Game game)
         {
-            // Read saved file and reconstruct the game
-            Game? loadedGame = ReadSavedGame();
-
-            if (loadedGame == null)
+            while (true)
             {
-                return;
-            }
+                // Play until the game ends, quits, or requests a load
+                bool loadRequested = game.PlayGame();
 
-            // Stop the existing game
-            currentGame?.QuitGame();
-
-            // Replace it with the loaded game
-            currentGame = loadedGame;
-        }
-
-        private static Game? ReadSavedGame()
-        {
-            Console.Write("Enter save file name: ");
-            string fileName = Console.ReadLine() ?? "";
-
-            if (!File.Exists(fileName))
-            {
-                Console.WriteLine("Save file not found.");
-                return null;
-            }
-            try
-            {
-                // Read the saved data
-                string[] lines = File.ReadAllLines(fileName);
-
-                // Parse the saved configuration and game state
-                SavedGameData savedData = ParseSavedGame(lines);
-
-                if (savedData == null)
+                // Quit or game over: return to the main menu
+                if (!loadRequested)
                 {
-                    Console.WriteLine("Invalid save file.");
-                    return null;
+                    return;
                 }
 
-                // Reconstruct the game's configuration
-                LaunchConfiguration config = savedData.Configuration;
+                // User requested a load
+                Game? loadedGame = TryLoadGame();
 
-                // Select the appropriate factory
-                IGameFactory factory;
-
-                if (savedData.Configuration.GameType == GameType.Gomoku)
+                if (loadedGame != null)
                 {
-                    factory = new GomokuGameFactory();
-                }
-                else if (savedData.Configuration.GameType == GameType.Reversi)
-                {
-                    factory = new ReversiGameFactory();
+                    // Replace the active game
+                    game = loadedGame;
+                    Console.WriteLine("Game loaded successfully.");
                 }
                 else
                 {
-                    throw new FormatException("Invalid game type.");
+                    // Keep the existing game
+                    Console.WriteLine("Continuing previous game.");
                 }
+            }
+        }       
+        private static Game? TryLoadGame()
+        {
+            Console.Write("Enter save file name (blank to cancel): ");
+            string filePath = (Console.ReadLine() ?? "").Trim();
 
-                // Create the game with the correct components
-                Game game = factory.CreateGame(savedData.Configuration);
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return null;
+            }
 
-                // Restore the saved game state
-                game.RestoreState(savedData.CurrentState);
+            try
+            {
+                // Read and parse the saved data
+                SavedGameData data = SaveFileManager.Load(filePath);
+
+                // Construct the correct game variant
+                Game game = CreateGame(data.Configuration);
+
+                // Restore the game state
+                game.RestoreState(data.CurrentState);
 
                 // Restore undo and redo histories
                 game.RestoreHistory(
-                    savedData.UndoHistory,
-                    savedData.RedoHistory
+                    data.UndoHistory,
+                    data.RedoHistory
                 );
 
-                // Return the reconstructed game
                 return game;
             }
             catch (Exception ex)
@@ -313,167 +254,7 @@
                 return null;
             }
         }
-
-        private static SavedGameData ParseSavedGame(string[] lines)
-        {
-            Dictionary<string, string> configFields = new();
-
-            Dictionary<string, string>? currentStateFields = null;
-
-            List<Dictionary<string, string>> undoStates = new();
-            List<Dictionary<string, string>> redoStates = new();
-
-            Dictionary<string, string>? activeSection = null;
-
-            // Read each section from the text file
-            foreach (string rawLine in lines)
-            {
-                string line = rawLine.Trim();
-
-                if (line == "" || line.StartsWith("#"))
-                {
-                    continue;
-                }
-
-                // Identify section headings
-                switch (line)
-                {
-                    case "[CONFIGURATION]":
-                        activeSection = configFields;
-                        continue;
-
-                    case "[CURRENT_STATE]":
-                        currentStateFields = new Dictionary<string, string>();
-                        activeSection = currentStateFields;
-                        continue;
-
-                    case "[UNDO_STATE]":
-                        activeSection = new Dictionary<string, string>();
-                        undoStates.Add(activeSection);
-                        continue;
-
-                    case "[REDO_STATE]":
-                        activeSection = new Dictionary<string, string>();
-                        redoStates.Add(activeSection);
-                        continue;
-                }
-
-                if (activeSection == null)
-                {
-                    throw new FormatException("Data found outside a section.");
-                }
-
-                // Split each line into key and value
-                int separator = line.IndexOf('=');
-
-                if (separator <= 0)
-                {
-                    throw new FormatException($"Invalid line: {line}");
-                }
-
-                string key = line.Substring(0, separator).Trim();
-                string value = line.Substring(separator + 1).Trim();
-
-                activeSection[key] = value;
-            }
-
-            if (currentStateFields == null)
-            {
-                throw new FormatException("Missing current game state.");
-            }
-
-            // Reconstruct launch configuration
-            LaunchConfiguration config = new LaunchConfiguration
-            {
-                GameType = Enum.Parse<GameType>(
-                    configFields["GameType"]),
-
-                Variant = Enum.Parse<GameVariant>(
-                    configFields["Variant"]),
-
-                GameMode = Enum.Parse<GameMode>(
-                    configFields["GameMode"])
-            };
-
-            if (configFields.TryGetValue("AIDifficulty", out string? difficulty))
-            {
-                config.AIDifficulty = Enum.Parse<AIDifficulty>(difficulty);
-            }
-
-            // Construct the saved data object
-            SavedGameData savedData = new SavedGameData
-            {
-                Configuration = config,
-
-                CurrentState = ParseGameState(currentStateFields),
-
-                UndoHistory = undoStates
-                    .Select(fields => ParseGameState(fields))
-                    .ToList(),
-
-                RedoHistory = redoStates
-                    .Select(fields => ParseGameState(fields))
-                    .ToList()
-            };
-
-            return savedData;
-        } 
-
-        private static GameState ParseGameState(
-            Dictionary<string, string> fields)
-        {
-            GameState state = new GameState
-            {
-                CurrentPlayerIndex = int.Parse(
-                    fields["CurrentPlayerIndex"]),
-
-                TurnCount = int.Parse(
-                    fields["TurnCount"]),
-
-                Result = Enum.Parse<GameResult>(
-                    fields["GameResult"]),
-
-                BoardRows = fields["Board"].Split('/').ToList(),
-
-                PlayerInventories = new List<Dictionary<char, int?>>
-                {
-                    ParseInventory(fields["Player1Inventory"]),
-                    ParseInventory(fields["Player2Inventory"])
-                }
-            };
-
-            return state;
-        }
-
-        // helper methods
-        private static Dictionary<char, int?> ParseInventory(string input)
-        {
-            Dictionary<char, int?> inventory =
-                new Dictionary<char, int?>();
-
-            string[] items = input.Split(',');
-
-            foreach (string item in items)
-            {
-                string[] parts = item.Split(':');
-
-                char symbol = char.Parse(parts[0]);
-
-                int? amount = parts[1] == "null"
-                    ? null
-                    : int.Parse(parts[1]);
-
-                inventory.Add(symbol, amount);
-            }
-
-            return inventory;
-        }
-
+    
     }
     
-
-
-
-
-
 }
