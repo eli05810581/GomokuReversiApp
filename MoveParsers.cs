@@ -1,3 +1,4 @@
+
 namespace GomokuReversiApp
 {
     // Parses move strings into game-specific Move objects
@@ -74,6 +75,12 @@ namespace GomokuReversiApp
                 throw new FormatException("Move cannot be empty.");
 
             input = input.Trim().ToUpper();
+
+            // Handle PASS before parsing coordinates
+            if (input == "PASS")
+            {
+                return new PassMove();
+            }
 
             // Reversi moves must start with P
             if (input[0] != 'P')
