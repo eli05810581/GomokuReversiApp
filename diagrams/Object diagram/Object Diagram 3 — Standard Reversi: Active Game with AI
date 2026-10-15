@@ -1,0 +1,61 @@
+
+@startuml
+title Object Diagram 3 - Standard Reversi with AI
+left to right direction
+skinparam shadowing false
+skinparam linetype ortho
+
+object "game : Game" as game {
+  TurnCount = 4
+  Result = Ongoing
+}
+
+object "config : LaunchConfiguration" as config {
+  GameType = Reversi
+  Variant = Standard
+  GameMode = HumanVsComputer
+  AIDifficulty = Smarter
+}
+
+object "human : HumanPlayer" as human {
+  Name = Player1
+  Number = 1
+}
+
+object "computer : AIPlayer" as ai {
+  Name = Computer
+  Number = 2
+}
+
+object "strategy : GreedyReversiStrategy" as strategy
+
+object "board : Board" as board {
+  Rows = 8
+  Cols = 8
+}
+
+object "processor : ReversiMoveProcessor" as processor
+object "checker : MajorityChecker" as checker
+object "visibility : FullVisibility" as visibility
+
+game --> config : Configuration
+game --> human : Players[0]
+game --> ai : Players[1]
+game --> board : Board
+game --> processor : MoveProcessor
+game --> checker : GameOverChecker
+game --> visibility : VisibilityModel
+
+ai --> strategy : MoveStrategy
+
+note bottom of processor
+Valid Reversi moves
+capture and flip
+opponent discs.
+end note
+
+note bottom of strategy
+The smarter AI evaluates
+available legal moves.
+end note
+@enduml

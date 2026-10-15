@@ -1,0 +1,53 @@
+
+@startuml
+title Object Diagram 1 - GomokuFog In-Progress Game
+left to right direction
+skinparam shadowing false
+skinparam linetype ortho
+
+object "game : Game" as game {
+  TurnCount = 8
+  Result = Ongoing
+  IsRunning = true
+}
+
+object "config : LaunchConfiguration" as config {
+  GameType = Gomoku
+  Variant = GomokuFog
+  GameMode = HumanVsHuman
+}
+
+object "player1 : HumanPlayer" as p1 {
+  Name = Player1
+  Number = 1
+}
+
+object "player2 : HumanPlayer" as p2 {
+  Name = Player2
+  Number = 2
+}
+
+object "board : Board" as board {
+  Rows = 10
+  Cols = 10
+}
+
+object "processor : GomokuMoveProcessor" as processor
+object "visibility : FogVisibility" as visibility
+object "checker : AlignmentChecker" as checker
+
+game --> config : Configuration
+game --> p1 : Players[0]
+game --> p2 : Players[1]
+game --> board : Board
+game --> processor : MoveProcessor
+game --> visibility : VisibilityModel
+game --> checker : GameOverChecker
+
+note bottom of visibility
+The player sees only
+permitted board cells.
+The underlying board
+remains unchanged.
+end note
+@enduml

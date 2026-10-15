@@ -1,0 +1,230 @@
+
+@startuml GomokuReversi_Class_Diagram
+title GomokuReversiApp - UML Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam shadowing false
+hide empty members
+left to right direction
+
+package "Core Game" {
+  class Game {
+    +PlayGame()
+    +PlayMove()
+    +EndTurn()
+    +UndoTurn()
+    +RedoTurn()
+    +DisplayHelp()
+  }
+
+  class Board
+  class GameState
+  class LaunchConfiguration
+  class SavedGameData
+  class SaveFileManager
+
+  abstract class Player
+  class HumanPlayer
+  class AIPlayer
+  class ScriptedPlayer
+
+  abstract class Piece
+  class OrdinaryStone
+  class HeavyStone
+  class Disc
+
+  abstract class Move
+  class GomokuMove
+  class ReversiMove
+  class PassMove
+
+  Player <|-- HumanPlayer
+  Player <|-- AIPlayer
+  Player <|-- ScriptedPlayer
+
+  Piece <|-- OrdinaryStone
+  Piece <|-- HeavyStone
+  Piece <|-- Disc
+
+  Move <|-- GomokuMove
+  Move <|-- ReversiMove
+  Move <|-- PassMove
+
+  Game --> Board
+  Game --> Player
+  Game --> GameState
+  Game --> LaunchConfiguration
+  Board --> Piece
+  GameState --> Board
+  SavedGameData --> GameState
+  SavedGameData --> LaunchConfiguration
+  SaveFileManager ..> SavedGameData
+}
+
+package "Abstract Factory Pattern" {
+  interface IGameFactory
+  abstract class GameFactoryBase
+  abstract class GomokuFactoryBase
+  abstract class ReversiFactoryBase
+
+  class GomokuStandardGameFactory
+  class GomokuPlusGameFactory
+  class GomokuFogGameFactory
+
+  class ReversiStandardGameFactory
+  class ReversiAntiGameFactory
+  class ReversiCornerGameFactory
+
+  IGameFactory <|.. GameFactoryBase
+  GameFactoryBase <|-- GomokuFactoryBase
+  GameFactoryBase <|-- ReversiFactoryBase
+
+  GomokuFactoryBase <|-- GomokuStandardGameFactory
+  GomokuFactoryBase <|-- GomokuPlusGameFactory
+  GomokuFactoryBase <|-- GomokuFogGameFactory
+
+  ReversiFactoryBase <|-- ReversiStandardGameFactory
+  ReversiFactoryBase <|-- ReversiAntiGameFactory
+  ReversiFactoryBase <|-- ReversiCornerGameFactory
+
+  IGameFactory ..> Game : creates
+}
+
+package "Command Pattern" {
+  interface ICommand {
+    +Execute(game : Game)
+  }
+
+  class MoveCommand
+  class UndoCommand
+  class RedoCommand
+  class SaveCommand
+  class LoadCommand
+  class HelpCommand
+  class QuitCommand
+  class InvalidCommand
+
+  interface ICommandSource
+  class InteractiveCommandSource
+  class AutomatedCommandSource
+  class InputParser
+  class CommandLineParser
+
+  ICommand <|.. MoveCommand
+  ICommand <|.. UndoCommand
+  ICommand <|.. RedoCommand
+  ICommand <|.. SaveCommand
+  ICommand <|.. LoadCommand
+  ICommand <|.. HelpCommand
+  ICommand <|.. QuitCommand
+  ICommand <|.. InvalidCommand
+
+  ICommandSource <|.. InteractiveCommandSource
+  ICommandSource <|.. AutomatedCommandSource
+
+  InputParser ..> ICommand
+  InteractiveCommandSource --> InputParser
+  ICommandSource ..> ICommand
+  Game --> ICommandSource
+  Game ..> ICommand : executes
+  MoveCommand ..> Move
+}
+
+package "Move Processing" {
+  interface IMoveProcessor
+  abstract class MoveProcessorBase
+  class GomokuMoveProcessor
+  class GomokuPlusMoveProcessor
+  class ReversiMoveProcessor
+
+  interface IMoveParser
+  class GomokuMoveParser
+  class GomokuPlusMoveParser
+  class ReversiMoveParser
+
+  IMoveProcessor <|.. MoveProcessorBase
+  MoveProcessorBase <|-- GomokuMoveProcessor
+  MoveProcessorBase <|-- GomokuPlusMoveProcessor
+  MoveProcessorBase <|-- ReversiMoveProcessor
+
+  IMoveParser <|.. GomokuMoveParser
+  GomokuMoveParser <|-- GomokuPlusMoveParser
+  IMoveParser <|.. ReversiMoveParser
+
+  Game --> IMoveProcessor
+  Game --> IMoveParser
+  IMoveProcessor ..> Move
+  IMoveParser ..> Move
+}
+
+package "Game Over Rules" {
+  interface IGameOverChecker
+  class AlignmentChecker
+  abstract class CountBasedChecker
+  class MajorityChecker
+  class MisereChecker
+  class CornerChecker
+
+  IGameOverChecker <|.. AlignmentChecker
+  IGameOverChecker <|.. CountBasedChecker
+  CountBasedChecker <|-- MajorityChecker
+  CountBasedChecker <|-- MisereChecker
+  CountBasedChecker <|-- CornerChecker
+
+  Game --> IGameOverChecker
+}
+
+package "Strategy Pattern - AI" {
+  interface IMoveStrategy {
+    +ChooseMove(game : Game)
+  }
+
+  class RandomMoveStrategy
+  class GomokuSmartStrategy
+  abstract class ReversiScoringStrategy
+  class GreedyReversiStrategy
+  class CornerReversiStrategy
+  class AntiReversiStrategy
+
+  IMoveStrategy <|.. RandomMoveStrategy
+  IMoveStrategy <|.. GomokuSmartStrategy
+  IMoveStrategy <|.. ReversiScoringStrategy
+
+  ReversiScoringStrategy <|-- GreedyReversiStrategy
+  ReversiScoringStrategy <|-- CornerReversiStrategy
+  ReversiScoringStrategy <|-- AntiReversiStrategy
+
+  AIPlayer --> IMoveStrategy
+  IMoveStrategy ..> Move
+}
+
+package "Visibility and Help" {
+  interface IVisibilityModel
+  class FullVisibility
+  class FogVisibility
+
+  interface IHelpProvider
+  class GomokuStandardHelpProvider
+  class GomokuPlusHelpProvider
+  class GomokuFogHelpProvider
+  class ReversiStandardHelpProvider
+  class ReversiAntiHelpProvider
+  class ReversiCornerHelpProvider
+
+  IVisibilityModel <|.. FullVisibility
+  IVisibilityModel <|.. FogVisibility
+
+  IHelpProvider <|.. GomokuStandardHelpProvider
+  IHelpProvider <|.. GomokuPlusHelpProvider
+  IHelpProvider <|.. GomokuFogHelpProvider
+  IHelpProvider <|.. ReversiStandardHelpProvider
+  IHelpProvider <|.. ReversiAntiHelpProvider
+  IHelpProvider <|.. ReversiCornerHelpProvider
+
+  Game --> IVisibilityModel
+  Game --> IHelpProvider
+}
+
+@enduml
