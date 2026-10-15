@@ -1,29 +1,56 @@
-using GomokuReversiApp;
+
+using System;
+using System.Collections.Generic;
 
 namespace GomokuReversiApp
 {
-    using System;
-    using System.Collections.Generic;
-    // move processors receive a syntactly correct move object, they check if the move is legal then apply the move.
+    // Move processors check whether a move is legal and apply it.
     public interface IMoveProcessor
     {
-        List<Move> GetLegalMoves(Game game, Player player); // single source of truth for the rules
+        List<Move> GetLegalMoves(Game game, Player player);
         bool IsMoveLegal(Game game, Move move);
         void ApplyMove(Game game, Move move);
         bool HasLegalMoves(Game game, Player player);
-        bool AllowPass {get;} // Does this game family have a Pass move (Reversi family)
-        
+        bool AllowPass { get; }
     }
-    public abstract class MoveProcessorBase: IMoveProcessor
+
+    public abstract class MoveProcessorBase : IMoveProcessor
     {
         public virtual bool AllowPass => false;
 
         public abstract List<Move> GetLegalMoves(Game game, Player player);
+
         public abstract void ApplyMove(Game game, Move move);
+
+        // FIX: Compare move values instead of object references.
         public bool IsMoveLegal(Game game, Move move)
         {
-            return GetLegalMoves(game, game.CurrentPlayer).Contains(move);
+            List<Move> legalMoves =
+                GetLegalMoves(game, game.CurrentPlayer);
+
+            foreach (Move legalMove in legalMoves)
+            {
+                if (move is ReversiMove requested &&
+                    legalMove is ReversiMove legal &&
+                    requested.Row == legal.Row &&
+                    requested.Col == legal.Col)
+                {
+                    return true;
+                }
+
+                if (move is GomokuMove requestedGomoku &&
+                    legalMove is GomokuMove legalGomoku &&
+                    requestedGomoku.Row == legalGomoku.Row &&
+                    requestedGomoku.Col == legalGomoku.Col &&
+                    requestedGomoku.StoneType == legalGomoku.StoneType)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
+
         public bool HasLegalMoves(Game game, Player player)
         {
             return GetLegalMoves(game, player).Count > 0;
@@ -33,7 +60,6 @@ namespace GomokuReversiApp
     // **** GOMOKU STANDARD ****
     public class GomokuMoveProcessor : MoveProcessorBase
     {
-        // public bool AllowPass => false;
         public override List<Move> GetLegalMoves(Game game, Player player)
         {
             List<Move> moves = new List<Move>();
@@ -52,11 +78,11 @@ namespace GomokuReversiApp
 
             return moves;
         }
+
         public override void ApplyMove(Game game, Move move)
         {
-            GomokuMove gomokuMove = (GomokuMove)move; // Game has already checked IsMoveLegal
+            GomokuMove gomokuMove = (GomokuMove)move;
 
-            // Place the current player's ordinary stone
             game.Board.SetCell(
                 gomokuMove.Row,
                 gomokuMove.Col,
@@ -64,6 +90,7 @@ namespace GomokuReversiApp
             );
         }
     }
+
     // **** GOMOKU PLUS ****
     public class GomokuPlusMoveProcessor : MoveProcessorBase
     {
@@ -87,7 +114,9 @@ namespace GomokuReversiApp
                             moves.Add(new GomokuMove(row, col, 'H'));
                         }
                     }
-                    else if (player.HasStoneAvailable('E') && piece is OrdinaryStone && piece.Owner != player.Number)
+                    else if (player.HasStoneAvailable('E') &&
+                             piece is OrdinaryStone &&
+                             piece.Owner != player.Number)
                     {
                         moves.Add(new GomokuMove(row, col, 'E'));
                     }
@@ -96,9 +125,9 @@ namespace GomokuReversiApp
 
             return moves;
         }
+
         public override void ApplyMove(Game game, Move move)
         {
-            // Game.ProcessMove() should already have validated this move
             GomokuMove gomokuMove = (GomokuMove)move;
             Player player = game.CurrentPlayer;
 
@@ -118,19 +147,17 @@ namespace GomokuReversiApp
                         gomokuMove.Col,
                         new HeavyStone(player.Number)
                     );
-                    
+
                     player.UseStone('H');
-                    // player.Inventory['H'] =
-                    //     player.Inventory['H']!.Value - 1;
                     break;
 
                 case 'E':
-                    // Remove the opponent's ordinary stone
-                    game.Board.ClearCell(gomokuMove.Row, gomokuMove.Col);
+                    game.Board.ClearCell(
+                        gomokuMove.Row,
+                        gomokuMove.Col
+                    );
 
                     player.UseStone('E');
-                    // player.Inventory['E'] =
-                    //     player.Inventory['E']!.Value - 1;
                     break;
 
                 default:
@@ -138,54 +165,57 @@ namespace GomokuReversiApp
             }
         }
     }
+
     // **** REVERSI ****
     public class ReversiMoveProcessor : MoveProcessorBase
     {
         public override bool AllowPass => true;
-        // dr = delta row, dc = delta column
+
         private static readonly (int dr, int dc)[] Directions =
         {
             (-1, -1), (-1, 0), (-1, 1),
             ( 0, -1),          ( 0, 1),
             ( 1, -1), ( 1, 0), ( 1, 1)
         };
+
         public override List<Move> GetLegalMoves(Game game, Player player)
         {
             List<Move> moves = new List<Move>();
             Board board = game.Board;
+
             for (int row = 1; row <= board.Rows; row++)
             {
                 for (int col = 1; col <= board.Cols; col++)
                 {
-                    if (board.GetCell(row, col) != null) continue;
+                    if (board.GetCell(row, col) != null)
+                        continue;
 
                     ReversiMove move = new ReversiMove(row, col);
 
-                    if (GetCapturedPositions(game, move, player).Count > 0) moves.Add(move);
+                    if (GetCapturedPositions(game, move, player).Count > 0)
+                    {
+                        moves.Add(move);
+                    }
                 }
             }
 
             return moves;
-        }   
+        }
+
         public override void ApplyMove(Game game, Move move)
         {
-            // Assume Game.PlayMove() has already validated the move
             ReversiMove reversiMove = (ReversiMove)move;
-
             Player player = game.CurrentPlayer;
 
-            // Find all opponent discs that will be flipped
             List<(int Row, int Col)> captured =
                 GetCapturedPositions(game, reversiMove, player);
 
-            // Place the current player's disc
             game.Board.SetCell(
                 reversiMove.Row,
                 reversiMove.Col,
                 new Disc(player.Number)
             );
 
-            // Flip all captured opponent discs
             foreach (var (row, col) in captured)
             {
                 game.Board.SetCell(
@@ -196,9 +226,10 @@ namespace GomokuReversiApp
             }
         }
 
-        // Find all opponent discs that would be captured
         private List<(int Row, int Col)> GetCapturedPositions(
-            Game game, ReversiMove move, Player player)
+            Game game,
+            ReversiMove move,
+            Player player)
         {
             var captured = new List<(int Row, int Col)>();
 
@@ -213,20 +244,21 @@ namespace GomokuReversiApp
                 {
                     Piece? stone = game.Board.GetCell(row, col);
 
-                    // Empty square breaks the capture line
                     if (stone == null)
+                    {
                         break;
+                    }
 
-                    // Friendly disc closes the capture line
                     if (stone.Owner == player.Number)
                     {
                         if (line.Count > 0)
+                        {
                             captured.AddRange(line);
+                        }
 
                         break;
                     }
 
-                    // Opponent disc: potential capture
                     line.Add((row, col));
 
                     row += dr;
@@ -237,24 +269,23 @@ namespace GomokuReversiApp
             return captured;
         }
 
-        // Count the discs flipped by the current player's proposed move
         public int CountFlips(Game game, ReversiMove move)
         {
             if (!game.Board.IsWithinBounds(move.Row, move.Col))
+            {
                 return 0;
+            }
 
             if (game.Board.GetCell(move.Row, move.Col) != null)
+            {
                 return 0;
+            }
 
             return GetCapturedPositions(
-                game, move, game.CurrentPlayer
+                game,
+                move,
+                game.CurrentPlayer
             ).Count;
         }
     }
-
 }
-
-
-
-
-
