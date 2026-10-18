@@ -1,14 +1,20 @@
+
+using System.Collections.Generic;
+
 namespace GomokuReversiApp
 {
-    public class SavedGameData // this class stores data of a saved game for it to be restored
+    public class SavedGameData
     {
-        public LaunchConfiguration Configuration { get; set; }
+        // Stores the game configuration
+        public LaunchConfiguration Configuration { get; set; } = null!;
 
-        public GameState CurrentState { get; set; }
+        // Stores the current game state
+        public GameState CurrentState { get; set; } = null!;
 
-        public List<GameState> UndoHistory { get; set; }
+        // Stores the undo history
+        public List<GameState> UndoHistory { get; set; } = new List<GameState>();
 
-        public List<GameState> RedoHistory { get; set; }
+        // Stores the redo history
+        public List<GameState> RedoHistory { get; set; } = new List<GameState>();
     }
-    
 }

@@ -1,7 +1,7 @@
 ﻿namespace GomokuReversiApp {
     public class Program
     {
-        private static Game? currentGame;
+       
         public static void Main(string[] args)
         {
             // Check whether command-line arguments were supplied

@@ -33,7 +33,7 @@ namespace GomokuReversiApp
             return piece == null ? 0 : piece.Owner;
         }
 
-        public Piece? GetCell(int row, int col) // Can return null
+        public Piece? GetCell(int row, int col)
         {
             return cells[row, col];
         }
@@ -65,13 +65,14 @@ namespace GomokuReversiApp
 
             return countPieces;
         }
+
         private void ValidatePosition(int row, int col)
         {
             if (!IsWithinBounds(row, col))
                 throw new ArgumentOutOfRangeException(
                     nameof(row), "Position is outside the board.");
         }
-        
+
         public void RestoreRows(IReadOnlyList<string> rows)
         {
             // Check board dimensions
@@ -103,12 +104,19 @@ namespace GomokuReversiApp
                             $"Unknown piece symbol: {symbol}")
                     };
 
-                    SetCell(row, col, piece);
+                    if (piece == null)
+                    {
+                        ClearCell(row, col);
+                    }
+                    else
+                    {
+                        SetCell(row, col, piece);
+                    }
                 }
             }
         }
-    
-        public string[] CaptureRows() // returns string representing board row state, for State
+
+        public string[] CaptureRows()
         {
             string[] rows = new string[Rows];
 
@@ -142,5 +150,3 @@ namespace GomokuReversiApp
         }
     }
 }
-
-
